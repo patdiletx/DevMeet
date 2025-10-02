@@ -4,40 +4,68 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { logger } from './config/logger';
+import routes from './routes';
 
-dotenv.config();
+dotenv.config({ path: '../../.env' });
 
 const app = express();
 const server = createServer(app);
 const PORT = process.env.PORT || 3000;
+const API_PREFIX = process.env.API_PREFIX || '/api/v1';
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3001'],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+      'http://localhost:3001',
+      'http://localhost:5173',
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Request logging middleware
+app.use((req, _res, next) => {
+  logger.debug(`${req.method} ${req.path}`);
+  next();
 });
 
-// Routes will be added here
-// app.use('/api/v1/meetings', meetingRoutes);
-// app.use('/api/v1/transcriptions', transcriptionRoutes);
-// app.use('/api/v1/ai', aiRoutes);
+// Health check (root level)
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
+// API Routes
+app.use(API_PREFIX, routes);
+
+// 404 handler
+app.use((_req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found',
+  });
+});
 
 // Error handling
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error',
+  });
 });
 
 server.listen(PORT, () => {
-  logger.info(`DevMeet Backend running on port ${PORT}`);
+  logger.info(`🚀 DevMeet Backend running on port ${PORT}`);
+  logger.info(`📍 API available at http://localhost:${PORT}${API_PREFIX}`);
+  logger.info(`💚 Health check: http://localhost:${PORT}/health`);
 });
 
 export { app, server };
