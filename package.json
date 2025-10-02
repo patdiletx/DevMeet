@@ -1,0 +1,39 @@
+{
+  "name": "devmeet-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI assistant for developers that takes notes and responds in real-time during technical meetings",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:*",
+    "dev:backend": "npm run dev --workspace=@devmeet/backend",
+    "dev:desktop": "npm run dev --workspace=@devmeet/desktop",
+    "dev:frontend": "npm run dev --workspace=@devmeet/frontend",
+    "build": "npm-run-all build:*",
+    "build:backend": "npm run build --workspace=@devmeet/backend",
+    "build:desktop": "npm run build --workspace=@devmeet/desktop",
+    "build:frontend": "npm run build --workspace=@devmeet/frontend",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "test": "npm run test --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
