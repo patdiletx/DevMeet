@@ -1,10 +1,12 @@
 import { app, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeImage } from 'electron';
 import path from 'path';
 import { WebSocketClient, MeetingConfig } from './websocket';
+import { AudioCaptureService } from './audioCapture';
 
 let mainWindow: BrowserWindow | null = null;
 let wsClient: WebSocketClient | null = null;
 let tray: Tray | null = null;
+let audioCapture: AudioCaptureService | null = null;
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -296,4 +298,84 @@ ipcMain.handle('send-audio-chunk', (_event, chunk: Buffer, sequence: number) => 
     console.error('Failed to send audio chunk:', error);
     return { success: false, error: error.message };
   }
+});
+
+/**
+ * Start audio capture
+ */
+ipcMain.handle('start-audio-capture', async (_event, type: 'microphone' | 'system' = 'microphone') => {
+  try {
+    if (!audioCapture) {
+      audioCapture = new AudioCaptureService();
+
+      // Forward audio chunks to WebSocket
+      audioCapture.on('audio-chunk', async (data) => {
+        try {
+          // Convert Blob to Buffer
+          const arrayBuffer = await data.chunk.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+
+          // Send to backend via WebSocket
+          if (wsClient && wsClient.isConnected()) {
+            wsClient.sendAudioChunk(buffer, data.sequence);
+          }
+
+          // Also send to renderer for visualization
+          if (mainWindow) {
+            mainWindow.webContents.send('audio-data', buffer);
+          }
+        } catch (error) {
+          console.error('Error processing audio chunk:', error);
+        }
+      });
+
+      audioCapture.on('error', (error) => {
+        console.error('Audio capture error:', error);
+        if (mainWindow) {
+          mainWindow.webContents.send('audio-error', error.message);
+        }
+      });
+    }
+
+    // Start capture based on type
+    if (type === 'system') {
+      await audioCapture.startSystemAudioCapture();
+    } else {
+      await audioCapture.startMicrophoneCapture();
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to start audio capture:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Stop audio capture
+ */
+ipcMain.handle('stop-audio-capture', async () => {
+  try {
+    if (!audioCapture) {
+      return { success: true };
+    }
+
+    await audioCapture.stopCapture();
+    audioCapture = null;
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to stop audio capture:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Get audio capture status
+ */
+ipcMain.handle('get-audio-status', () => {
+  return {
+    isRecording: audioCapture?.isCurrentlyRecording() ?? false,
+    sequence: audioCapture?.getCurrentSequence() ?? 0,
+  };
 });

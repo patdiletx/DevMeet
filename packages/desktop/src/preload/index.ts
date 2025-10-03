@@ -16,9 +16,17 @@ contextBridge.exposeInMainWorld('electron', {
   startMeeting: (config: any) => ipcRenderer.invoke('start-meeting', config),
   endMeeting: () => ipcRenderer.invoke('end-meeting'),
 
-  // Audio
-  sendAudioChunk: (chunk: Buffer, sequence: number) =>
-    ipcRenderer.invoke('send-audio-chunk', chunk, sequence),
+  // Audio Capture
+  startAudioCapture: (type: 'microphone' | 'system') =>
+    ipcRenderer.invoke('start-audio-capture', type),
+  stopAudioCapture: () => ipcRenderer.invoke('stop-audio-capture'),
+  getAudioStatus: () => ipcRenderer.invoke('get-audio-status'),
+  onAudioData: (callback: (data: Buffer) => void) => {
+    ipcRenderer.on('audio-data', (_event, data) => callback(data));
+  },
+  onAudioError: (callback: (error: string) => void) => {
+    ipcRenderer.on('audio-error', (_event, error) => callback(error));
+  },
 
   // Transcriptions
   onTranscription: (callback: (data: any) => void) => {
