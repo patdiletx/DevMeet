@@ -1,5 +1,8 @@
 // Common types for DevMeet Backend
 
+// Re-export WebSocket types
+export * from './websocket';
+
 export interface Meeting {
   id: number;
   title: string;

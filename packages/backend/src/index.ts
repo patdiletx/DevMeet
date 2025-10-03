@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { logger } from './config/logger';
 import routes from './routes';
+import { wsService } from './services/websocket';
 
 dotenv.config({ path: '../../.env' });
 
@@ -62,10 +63,33 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   });
 });
 
+// Initialize WebSocket server
+wsService.initialize(server);
+
 server.listen(PORT, () => {
   logger.info(`🚀 DevMeet Backend running on port ${PORT}`);
   logger.info(`📍 API available at http://localhost:${PORT}${API_PREFIX}`);
+  logger.info(`🔌 WebSocket available at ws://localhost:${PORT}/ws`);
   logger.info(`💚 Health check: http://localhost:${PORT}/health`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received, shutting down gracefully...');
+  await wsService.shutdown();
+  server.close(() => {
+    logger.info('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received, shutting down gracefully...');
+  await wsService.shutdown();
+  server.close(() => {
+    logger.info('Server closed');
+    process.exit(0);
+  });
 });
 
 export { app, server };

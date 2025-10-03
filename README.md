@@ -1,15 +1,22 @@
 # DevMeet AI
 
-Asistente IA para desarrolladores que toma notas y responde en tiempo real durante reuniones técnicas.
+> **Asistente IA para desarrolladores** que captura, transcribe y analiza reuniones técnicas en tiempo real.
 
-## 🚀 Características
+[![Status](https://img.shields.io/badge/status-MVP%20Development-orange)]()
+[![Node](https://img.shields.io/badge/node-18+-green)]()
+[![TypeScript](https://img.shields.io/badge/typescript-5.3-blue)]()
+[![PostgreSQL](https://img.shields.io/badge/postgresql-14+-blue)]()
 
-- **Captura de audio** en tiempo real desde tu escritorio
-- **Transcripción automática** con Whisper AI
-- **Análisis inteligente** con Claude AI
-- **Notas automáticas** estructuradas y accionables
-- **Búsqueda de documentación** relevante durante reuniones
-- **Identificación de action items** y decisiones clave
+## ✨ Características Principales
+
+- 🎙️ **Captura de audio** en tiempo real desde tu escritorio
+- 📝 **Transcripción automática** con Whisper AI
+- 🧠 **Análisis inteligente** con Claude AI
+- 📋 **Notas automáticas** estructuradas y accionables
+- 🔍 **Búsqueda de documentación** relevante durante reuniones
+- ✅ **Identificación de action items** y decisiones clave
+- 🔎 **Full-text search** en transcripciones
+- 💾 **Persistencia** en PostgreSQL con schema optimizado
 
 ## 📋 Requisitos
 
@@ -74,55 +81,48 @@ DevMeet/
 
 ## ⚡ Quick Start
 
-### 1. Clonar e Instalar Dependencias
+**¿Primera vez?** → Lee [**QUICKSTART.md**](./QUICKSTART.md) para configurar todo en 15 minutos.
 
 ```bash
-git clone <repo-url>
-cd DevMeet
+# 1. Instalar dependencias (si aún no lo hiciste)
 npm install
+
+# 2. Configurar PostgreSQL y ejecutar migrations
+cd packages/backend
+npm run migrate
+
+# 3. Iniciar el backend
+cd ../..
+npm run dev:backend
+
+# 4. Probar la API
+curl http://localhost:3000/health
 ```
 
-### 2. Configurar PostgreSQL
+✅ **Backend corriendo en http://localhost:3000**
+
+### 📖 Documentación de Inicio
+
+| Documento | Descripción | Tiempo |
+|-----------|-------------|--------|
+| [**QUICKSTART.md**](./QUICKSTART.md) | Configuración paso a paso | 15 min |
+| [**INSTALL.md**](./INSTALL.md) | Instalación detallada | 30 min |
+| [**API_EXAMPLES.md**](./API_EXAMPLES.md) | Ejemplos de uso de API REST | 10 min |
+| [**WEBSOCKET_EXAMPLES.md**](./WEBSOCKET_EXAMPLES.md) | Ejemplos de WebSocket en tiempo real | 10 min |
+| [**COMMANDS.md**](./COMMANDS.md) | Referencia de comandos | 5 min |
+
+### 🧪 Probar la API
 
 ```bash
-# Instalar PostgreSQL
-# Windows: https://www.postgresql.org/download/windows/
-# Mac: brew install postgresql
-# Linux: sudo apt install postgresql
+# Crear una reunión
+curl -X POST http://localhost:3000/api/v1/meetings \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Mi Primera Reunión","description":"Testing DevMeet AI"}'
 
-# Crear base de datos
-psql -U postgres
-CREATE DATABASE devmeet_db;
-CREATE USER devmeet_user WITH PASSWORD 'tu_password';
-GRANT ALL PRIVILEGES ON DATABASE devmeet_db TO devmeet_user;
-\q
+# Listar reuniones
+curl http://localhost:3000/api/v1/meetings
 
-# Ejecutar migration
-psql -U devmeet_user -d devmeet_db -f packages/backend/migrations/001_initial_schema.sql
-```
-
-### 3. Configurar Variables de Entorno
-
-```bash
-# Copiar ejemplo
-cp .env.example .env
-
-# Editar .env con tus credenciales
-# - DATABASE_URL
-# - ANTHROPIC_API_KEY
-# - OPENAI_API_KEY
-```
-
-### 4. Ejecutar en Desarrollo
-
-```bash
-# Iniciar todos los servicios
-npm run dev
-
-# O ejecutar individualmente:
-npm run dev:backend    # Backend en http://localhost:3000
-npm run dev:frontend   # Frontend en http://localhost:5173
-npm run dev:desktop    # Electron app
+# Ver ejemplos completos en API_EXAMPLES.md
 ```
 
 ## 📦 Scripts Disponibles
@@ -201,52 +201,122 @@ npm run lint             # Linting específico de React
 - React Query
 - Axios
 
-## 📚 Documentación
+## 📚 Documentación Completa
 
-- [**PROJECT_CONTEXT.md**](./PROJECT_CONTEXT.md) - Contexto completo del proyecto
+### 🚀 Para Empezar
+- [**QUICKSTART.md**](./QUICKSTART.md) - Configuración rápida (15 min)
+- [**INSTALL.md**](./INSTALL.md) - Instalación paso a paso
+- [**API_EXAMPLES.md**](./API_EXAMPLES.md) - Ejemplos de la API REST
+- [**WEBSOCKET_EXAMPLES.md**](./WEBSOCKET_EXAMPLES.md) - Ejemplos de WebSocket
+- [**COMMANDS.md**](./COMMANDS.md) - Referencia de comandos npm
+- [**SETUP_POSTGRESQL.md**](./SETUP_POSTGRESQL.md) - Configuración de PostgreSQL
+- [**CONTINUE_PROMPT.md**](./CONTINUE_PROMPT.md) - Prompts para continuar desarrollo
+
+### 📖 Documentación Técnica
+- [**PROJECT_CONTEXT.md**](./PROJECT_CONTEXT.md) - Contexto y visión del proyecto
 - [**docs/ARCHITECTURE.md**](./docs/ARCHITECTURE.md) - Arquitectura detallada
 - [**docs/DATABASE_SCHEMA.md**](./docs/DATABASE_SCHEMA.md) - Schema de base de datos
-- [**tasks/BACKLOG.md**](./tasks/BACKLOG.md) - Tareas priorizadas
-- [**tasks/IN_PROGRESS.md**](./tasks/IN_PROGRESS.md) - Estado actual
 
-## 🗺️ Roadmap
+### 📋 Gestión del Proyecto
+- [**STATUS.md**](./STATUS.md) - Estado actual del proyecto
+- [**MILESTONE_1_SUMMARY.md**](./MILESTONE_1_SUMMARY.md) - Resumen Milestone 1 ✅
+- [**tasks/BACKLOG.md**](./tasks/BACKLOG.md) - Backlog de tareas (100+)
+- [**tasks/IN_PROGRESS.md**](./tasks/IN_PROGRESS.md) - Tareas en progreso
 
-### ✅ Fase 1: Setup e Infraestructura (Completada)
-- Configuración del monorepo
-- Estructura de packages
-- Documentación base
+## 🗺️ Roadmap del MVP
 
-### 🚧 Fase 2: Backend Core (En Progreso)
-- Base de datos PostgreSQL
-- API REST de meetings
-- WebSocket para real-time
-- Integración con Whisper y Claude
+### ✅ Milestone 1: Backend Core (100% COMPLETADO) 🎉
+- [x] Monorepo con npm workspaces
+- [x] TypeScript + ESLint + Prettier
+- [x] PostgreSQL schema (7 tablas)
+- [x] Migration system
+- [x] API REST completa (10 endpoints)
+- [x] Logging con Winston
+- [x] Error handling middleware
+- [x] WebSocket server
+- [x] Whisper API integration
+- [x] Claude API integration
+- [x] Audio processing pipeline
+- [x] Action items detection
 
-### ⏳ Fase 3: Desktop App
-- Captura de audio nativo
-- IPC con frontend
-- Packaging
+### ⏳ Milestone 2: Desktop App (0%)
+- [ ] Electron main process
+- [ ] Audio capture nativo
+- [ ] IPC bridge con frontend
+- [ ] System tray integration
+- [ ] Packaging con electron-builder
 
-### ⏳ Fase 4: Frontend UI
-- Dashboard de reuniones
-- Vista de reunión activa
-- Panels de transcripción y notas
+### ⏳ Milestone 3: Frontend UI (0%)
+- [ ] Dashboard de reuniones
+- [ ] Vista de reunión activa
+- [ ] Panel de transcripción en tiempo real
+- [ ] Panel de notas generadas
+- [ ] Búsqueda full-text
 
-### ⏳ Fase 5: Integración IA
-- Análisis en tiempo real
-- Generación de notas
-- Búsqueda de documentación
+### ⏳ Milestone 4: IA Integration (0%)
+- [ ] Análisis de transcripciones con Claude
+- [ ] Generación automática de notas
+- [ ] Detección de action items
+- [ ] Búsqueda de documentación relevante
 
-## 🤝 Contribuir
+### ⏳ Milestone 5: Testing & Polish (0%)
+- [ ] Tests unitarios (Jest)
+- [ ] Tests de integración
+- [ ] Tests E2E (Playwright)
+- [ ] Performance optimization
+- [ ] Documentación de usuario
 
-Este proyecto está en desarrollo activo. Consulta [BACKLOG.md](./tasks/BACKLOG.md) para ver tareas pendientes.
+**Progreso del MVP**: 20% completado (Milestone 1/5 ✅)
 
-## 📄 Licencia
+## 🎯 Estado Actual
 
-MIT
+**Fase**: Milestone 1 - Backend Core (100% ✅)
+**Backend API**: ✅ Funcional (10 endpoints REST + 8 eventos WebSocket)
+**WebSocket**: ✅ Implementado con streaming en tiempo real
+**IA Integration**: ✅ Whisper + Claude completamente integrados
+**Base de datos**: ⏳ Pendiente instalación de PostgreSQL
+**Próximo paso**: Configurar PostgreSQL y testing end-to-end
+
+Ver [**MILESTONE_1_SUMMARY.md**](./MILESTONE_1_SUMMARY.md) para el resumen completo del milestone.
 
 ---
 
-**Estado**: MVP en desarrollo - Fase 2
-**Versión**: 0.1.0
+## 🔗 API Endpoints Disponibles
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check del servidor |
+| `GET` | `/api/v1/meetings` | Listar reuniones (paginado) |
+| `GET` | `/api/v1/meetings/:id` | Obtener reunión por ID |
+| `GET` | `/api/v1/meetings/:id/full` | Reunión con todas las relaciones |
+| `POST` | `/api/v1/meetings` | Crear nueva reunión |
+| `PATCH` | `/api/v1/meetings/:id` | Actualizar reunión |
+| `POST` | `/api/v1/meetings/:id/end` | Finalizar reunión |
+| `DELETE` | `/api/v1/meetings/:id` | Eliminar reunión |
+| `GET` | `/api/v1/transcriptions/search` | Búsqueda full-text |
+| `POST` | `/api/v1/transcriptions` | Crear transcripción |
+| `DELETE` | `/api/v1/transcriptions/:id` | Eliminar transcripción |
+
+Ver [**API_EXAMPLES.md**](./API_EXAMPLES.md) para ejemplos completos.
+
+---
+
+## 🤝 Contribuir
+
+Este proyecto está en desarrollo activo. Para contribuir:
+
+1. Consulta [**tasks/BACKLOG.md**](./tasks/BACKLOG.md) para ver tareas disponibles
+2. Lee [**docs/ARCHITECTURE.md**](./docs/ARCHITECTURE.md) para entender la arquitectura
+3. Sigue las convenciones de código (TypeScript strict, ESLint, Prettier)
+
+---
+
+## 📄 Licencia
+
+MIT License - Ver LICENSE para más detalles
+
+---
+
+**Versión**: 0.1.0-alpha
 **Última actualización**: 2025-10-02
+**Estado**: 🟢 Activo - MVP en desarrollo
