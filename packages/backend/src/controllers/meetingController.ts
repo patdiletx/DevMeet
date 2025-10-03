@@ -8,7 +8,7 @@ export class MeetingController {
    * GET /api/v1/meetings
    * List all meetings with pagination
    */
-  static async list(req: Request, res: Response) {
+  static async list(req: Request, res: Response): Promise<void> {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
@@ -46,12 +46,12 @@ export class MeetingController {
    * GET /api/v1/meetings/:id
    * Get a single meeting by ID
    */
-  static async getById(req: Request, res: Response) {
+  static async getById(req: Request, res: Response): Promise<void> {
     try {
       const id = parseInt(req.params.id);
 
       if (isNaN(id)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid meeting ID',
         });
@@ -60,7 +60,7 @@ export class MeetingController {
       const meeting = await MeetingModel.findById(id);
 
       if (!meeting) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'Meeting not found',
         });
@@ -83,12 +83,12 @@ export class MeetingController {
    * GET /api/v1/meetings/:id/full
    * Get meeting with all related data (transcriptions, notes, etc.)
    */
-  static async getByIdWithRelations(req: Request, res: Response) {
+  static async getByIdWithRelations(req: Request, res: Response): Promise<void> {
     try {
       const id = parseInt(req.params.id);
 
       if (isNaN(id)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid meeting ID',
         });
@@ -97,7 +97,7 @@ export class MeetingController {
       const meeting = await MeetingModel.findByIdWithRelations(id);
 
       if (!meeting) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'Meeting not found',
         });
@@ -120,7 +120,7 @@ export class MeetingController {
    * POST /api/v1/meetings
    * Create a new meeting
    */
-  static async create(req: Request, res: Response) {
+  static async create(req: Request, res: Response): Promise<void> {
     try {
       const input: CreateMeetingInput = {
         title: req.body.title,
@@ -130,7 +130,7 @@ export class MeetingController {
 
       // Validation
       if (!input.title || input.title.trim().length === 0) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Meeting title is required',
         });
@@ -158,12 +158,12 @@ export class MeetingController {
    * PATCH /api/v1/meetings/:id
    * Update a meeting
    */
-  static async update(req: Request, res: Response) {
+  static async update(req: Request, res: Response): Promise<void> {
     try {
       const id = parseInt(req.params.id);
 
       if (isNaN(id)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid meeting ID',
         });
@@ -181,10 +181,11 @@ export class MeetingController {
       const meeting = await MeetingModel.update(id, input);
 
       if (!meeting) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'Meeting not found',
         });
+        return;
       }
 
       logger.info(`Meeting updated: ${meeting.id}`);
@@ -207,12 +208,12 @@ export class MeetingController {
    * POST /api/v1/meetings/:id/end
    * End a meeting
    */
-  static async end(req: Request, res: Response) {
+  static async end(req: Request, res: Response): Promise<void> {
     try {
       const id = parseInt(req.params.id);
 
       if (isNaN(id)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid meeting ID',
         });
@@ -221,10 +222,11 @@ export class MeetingController {
       const meeting = await MeetingModel.end(id);
 
       if (!meeting) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'Meeting not found',
         });
+        return;
       }
 
       logger.info(`Meeting ended: ${meeting.id}`);
@@ -247,12 +249,12 @@ export class MeetingController {
    * DELETE /api/v1/meetings/:id
    * Delete a meeting
    */
-  static async delete(req: Request, res: Response) {
+  static async delete(req: Request, res: Response): Promise<void> {
     try {
       const id = parseInt(req.params.id);
 
       if (isNaN(id)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid meeting ID',
         });
@@ -261,7 +263,7 @@ export class MeetingController {
       const deleted = await MeetingModel.delete(id);
 
       if (!deleted) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'Meeting not found',
         });

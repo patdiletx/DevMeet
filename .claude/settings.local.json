@@ -4,7 +4,9 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nchore: initial project setup\n\n- Initialize monorepo with workspaces (backend, desktop, frontend)\n- Configure TypeScript, ESLint, Prettier\n- Setup backend with Express, PostgreSQL, Winston\n- Setup desktop with Electron\n- Setup frontend with React, Vite, Zustand\n- Create initial database schema and migration script\n- Add comprehensive documentation (README, INSTALL, COMMANDS, PROJECT_CONTEXT)\n- Add architecture and database schema documentation\n- Create task management files (BACKLOG, IN_PROGRESS)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(psql:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

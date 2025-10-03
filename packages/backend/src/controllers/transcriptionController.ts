@@ -8,14 +8,14 @@ export class TranscriptionController {
    * GET /api/v1/meetings/:meetingId/transcriptions
    * List all transcriptions for a meeting
    */
-  static async listByMeeting(req: Request, res: Response) {
+  static async listByMeeting(req: Request, res: Response): Promise<void> {
     try {
       const meetingId = parseInt(req.params.meetingId);
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
 
       if (isNaN(meetingId)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid meeting ID',
         });
@@ -45,7 +45,7 @@ export class TranscriptionController {
    * POST /api/v1/transcriptions
    * Create a new transcription
    */
-  static async create(req: Request, res: Response) {
+  static async create(req: Request, res: Response): Promise<void> {
     try {
       const input: CreateTranscriptionInput = {
         meeting_id: req.body.meeting_id,
@@ -61,14 +61,14 @@ export class TranscriptionController {
 
       // Validation
       if (!input.meeting_id) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Meeting ID is required',
         });
       }
 
       if (!input.content || input.content.trim().length === 0) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Transcription content is required',
         });
@@ -96,7 +96,7 @@ export class TranscriptionController {
    * GET /api/v1/transcriptions/search
    * Search transcriptions by text
    */
-  static async search(req: Request, res: Response) {
+  static async search(req: Request, res: Response): Promise<void> {
     try {
       const query = req.query.q as string;
       const meetingId = req.query.meeting_id
@@ -105,7 +105,7 @@ export class TranscriptionController {
       const limit = parseInt(req.query.limit as string) || 20;
 
       if (!query || query.trim().length === 0) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Search query is required',
         });
@@ -133,12 +133,12 @@ export class TranscriptionController {
    * DELETE /api/v1/transcriptions/:id
    * Delete a transcription
    */
-  static async delete(req: Request, res: Response) {
+  static async delete(req: Request, res: Response): Promise<void> {
     try {
       const id = parseInt(req.params.id);
 
       if (isNaN(id)) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: 'Invalid transcription ID',
         });
@@ -147,7 +147,7 @@ export class TranscriptionController {
       const deleted = await TranscriptionModel.delete(id);
 
       if (!deleted) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: 'Transcription not found',
         });
