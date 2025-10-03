@@ -1,11 +1,19 @@
 import { Pool } from 'pg';
+import dotenv from 'dotenv';
 import { logger } from './logger';
 
+// Load environment variables early
+dotenv.config({ path: '../../.env' });
+
+// Supabase requires SSL and longer timeout
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // Increased for Supabase
+  ssl: process.env.DATABASE_URL?.includes('supabase.co')
+    ? { rejectUnauthorized: false }
+    : false,
 });
 
 pool.on('error', (err) => {
