@@ -5,3 +5,4 @@ export { MeetingAnalysisModel } from './MeetingAnalysisModel';
 export { ChatMessageModel } from './ChatMessageModel';
 export { UserNotesModel } from './UserNotesModel';
 export { ProjectModel } from './ProjectModel';
+export { ProjectDocumentModel } from './ProjectDocumentModel';

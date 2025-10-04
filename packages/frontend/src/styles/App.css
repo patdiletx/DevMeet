@@ -419,9 +419,47 @@ button:disabled {
   margin-bottom: var(--spacing-xs);
 }
 
+.meeting-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xs);
+}
+
 .meeting-id {
   font-size: 0.875rem;
   color: var(--text-secondary);
+}
+
+.project-select-compact {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  pointer-events: auto;
+  z-index: 10;
+  position: relative;
+}
+
+.project-select-compact:hover {
+  border-color: var(--primary-color);
+  background: var(--bg-primary);
+}
+
+.project-select-compact:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.project-select-compact option {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: var(--spacing-sm);
 }
 
 .meeting-timer {

@@ -47,7 +47,7 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
 
     setIsLoadingHistory(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/v1/ai/chat/${activeMeetingId}`);
+      const response = await fetch(`http://localhost:3001/api/v1/ai/chat/${activeMeetingId}/messages`);
 
       if (response.ok) {
         const result = await response.json();
@@ -114,7 +114,7 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
       const context = contextParts.length > 0 ? contextParts.join('\n\n') : undefined;
 
       // Call backend AI service
-      const response = await fetch(`http://localhost:3000/api/v1/ai/chat/${activeMeetingId}`, {
+      const response = await fetch(`http://localhost:3001/api/v1/ai/chat/${activeMeetingId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, context }),

@@ -55,6 +55,7 @@ export class TranscriptionController {
           success: false,
           error: 'Invalid meeting ID',
         });
+        return;
       }
 
       const offset = (page - 1) * limit;
@@ -101,6 +102,7 @@ export class TranscriptionController {
           success: false,
           error: 'Meeting ID is required',
         });
+        return;
       }
 
       if (!input.content || input.content.trim().length === 0) {
@@ -108,6 +110,7 @@ export class TranscriptionController {
           success: false,
           error: 'Transcription content is required',
         });
+        return;
       }
 
       const transcription = await TranscriptionModel.create(input);
@@ -145,6 +148,7 @@ export class TranscriptionController {
           success: false,
           error: 'Search query is required',
         });
+        return;
       }
 
       const transcriptions = await TranscriptionModel.search(query, {
@@ -178,6 +182,7 @@ export class TranscriptionController {
           success: false,
           error: 'Invalid transcription ID',
         });
+        return;
       }
 
       const deleted = await TranscriptionModel.delete(id);
@@ -187,6 +192,7 @@ export class TranscriptionController {
           success: false,
           error: 'Transcription not found',
         });
+        return;
       }
 
       logger.info(`Transcription deleted: ${id}`);

@@ -20,7 +20,7 @@ class AIService {
   /**
    * Analyze meeting transcript and return summary and key decisions
    */
-  async analyzeMeeting(transcript: string): Promise<{
+  async analyzeMeeting(transcript: string, language?: string): Promise<{
     summary: string;
     keyPoints: string[];
     decisions: string[];
@@ -33,7 +33,8 @@ class AIService {
       const analysis: MeetingAnalysis = await this.claudeService.analyzeMeeting(
         transcriptions,
         'Meeting Analysis',
-        'Automatic analysis of meeting transcription'
+        'Automatic analysis of meeting transcription',
+        language
       );
 
       return {
@@ -50,7 +51,7 @@ class AIService {
   /**
    * Detect action items from transcript
    */
-  async detectActionItems(transcript: string): Promise<Array<{
+  async detectActionItems(transcript: string, language?: string): Promise<Array<{
     description: string;
     assignee: string | null;
     priority: 'low' | 'medium' | 'high';
@@ -60,7 +61,7 @@ class AIService {
       const transcriptions = this.parseTranscript(transcript);
 
       // Call Claude service
-      const actionItems: DetectedActionItem[] = await this.claudeService.detectActionItems(transcriptions);
+      const actionItems: DetectedActionItem[] = await this.claudeService.detectActionItems(transcriptions, language);
 
       // Map to simplified format
       return actionItems.map(item => ({
@@ -77,14 +78,18 @@ class AIService {
   /**
    * Detect main topics discussed in the meeting
    */
-  async detectTopics(transcript: string): Promise<string[]> {
+  async detectTopics(transcript: string, language?: string): Promise<string[]> {
     try {
+      const languageInstructions = this.getLanguageInstructions(language);
+
       const response = await this.claudeService.chat([{
         role: 'user',
-        content: `Analiza la siguiente transcripción de reunión y extrae los 5 temas principales discutidos.
-Responde solo con una lista de temas separados por comas, sin numeración ni explicaciones.
+        content: `${languageInstructions}
 
-Transcripción:
+Analyze the following meeting transcription and extract the 5 main topics discussed.
+Respond only with a list of topics separated by commas, without numbering or explanations.
+
+Transcription:
 ${transcript}`
       }]);
 
@@ -100,14 +105,14 @@ ${transcript}`
   /**
    * Analyze sentiment of the meeting
    */
-  async analyzeSentiment(transcript: string): Promise<'positive' | 'neutral' | 'negative'> {
+  async analyzeSentiment(transcript: string, language?: string): Promise<'positive' | 'neutral' | 'negative'> {
     try {
       const response = await this.claudeService.chat([{
         role: 'user',
-        content: `Analiza el tono general de la siguiente transcripción de reunión.
-Responde solo con una palabra: "positive", "neutral", o "negative".
+        content: `Analyze the overall tone of the following meeting transcription.
+Respond only with one word: "positive", "neutral", or "negative".
 
-Transcripción:
+Transcription:
 ${transcript}`
       }]);
 
@@ -124,19 +129,23 @@ ${transcript}`
   /**
    * Ask a question about the meeting with context
    */
-  async askQuestion(question: string, context: string): Promise<string> {
+  async askQuestion(question: string, context: string, language?: string): Promise<string> {
     try {
+      const languageInstructions = this.getLanguageInstructions(language);
+
       const response = await this.claudeService.chat([{
         role: 'user',
-        content: `Eres un asistente de IA especializado en analizar reuniones.
-Basándote en el contexto proporcionado (transcripciones y documentos), responde la siguiente pregunta de manera concisa y precisa.
+        content: `${languageInstructions}
 
-Contexto:
+You are an AI assistant specialized in analyzing meetings.
+Based on the provided context (transcriptions and documents), answer the following question concisely and accurately.
+
+Context:
 ${context}
 
-Pregunta: ${question}
+Question: ${question}
 
-Respuesta:`
+Answer:`
       }]);
 
       return response.trim();
@@ -144,6 +153,26 @@ Respuesta:`
       logger.error('Failed to answer question:', error);
       throw new Error(`Failed to answer question: ${error.message}`);
     }
+  }
+
+  /**
+   * Get language-specific instructions for AI prompts
+   */
+  private getLanguageInstructions(language?: string): string {
+    if (!language) {
+      return 'Please respond in Spanish.';
+    }
+
+    const languageMap: Record<string, string> = {
+      'es': 'Por favor responde en español.',
+      'en': 'Please respond in English.',
+      'pt': 'Por favor, responda em português.',
+      'fr': 'Veuillez répondre en français.',
+      'de': 'Bitte antworten Sie auf Deutsch.',
+      'it': 'Si prega di rispondere in italiano.',
+    };
+
+    return languageMap[language] || `Please respond in ${language}.`;
   }
 
   /**

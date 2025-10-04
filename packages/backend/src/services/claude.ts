@@ -90,15 +90,19 @@ export class ClaudeService {
   async analyzeMeeting(
     transcriptions: Transcription[],
     meetingTitle: string,
-    meetingDescription?: string
+    meetingDescription?: string,
+    language?: string
   ): Promise<MeetingAnalysis> {
     if (!this.client) {
       throw new Error('Claude API key not configured');
     }
 
     const transcriptText = this.formatTranscriptions(transcriptions);
+    const languageInstruction = this.getLanguageInstruction(language);
 
-    const prompt = `You are an AI assistant helping developers during technical meetings. Analyze the following meeting transcription and provide:
+    const prompt = `${languageInstruction}
+
+You are an AI assistant helping developers during technical meetings. Analyze the following meeting transcription and provide:
 
 1. **Summary**: A brief overview of the meeting (2-3 sentences)
 2. **Key Points**: Important technical points discussed
@@ -214,14 +218,17 @@ Respond in JSON format:
   /**
    * Detect action items from recent transcriptions
    */
-  async detectActionItems(transcriptions: Transcription[]): Promise<DetectedActionItem[]> {
+  async detectActionItems(transcriptions: Transcription[], language?: string): Promise<DetectedActionItem[]> {
     if (!this.client) {
       throw new Error('Claude API key not configured');
     }
 
     const transcriptText = this.formatTranscriptions(transcriptions);
+    const languageInstruction = this.getLanguageInstruction(language);
 
-    const prompt = `Analyze this meeting transcription and identify action items (tasks, TODOs, assignments).
+    const prompt = `${languageInstruction}
+
+Analyze this meeting transcription and identify action items (tasks, TODOs, assignments).
 
 ${transcriptText}
 
@@ -345,6 +352,26 @@ Only suggest official documentation from trusted sources (official docs, GitHub 
 
       return JSON.parse(content.text);
     });
+  }
+
+  /**
+   * Get language-specific instruction for prompts
+   */
+  private getLanguageInstruction(language?: string): string {
+    if (!language) {
+      return 'Please respond in Spanish.';
+    }
+
+    const languageMap: Record<string, string> = {
+      'es': 'Por favor responde en español.',
+      'en': 'Please respond in English.',
+      'pt': 'Por favor, responda em português.',
+      'fr': 'Veuillez répondre en français.',
+      'de': 'Bitte antworten Sie auf Deutsch.',
+      'it': 'Si prega di rispondere in italiano.',
+    };
+
+    return languageMap[language] || `Please respond in ${language}.`;
   }
 
   /**

@@ -4,8 +4,15 @@ import { TranscriptionPanel } from './TranscriptionPanel';
 import { MeetingAnalysis } from './MeetingAnalysis';
 import { AIChat } from './AIChat';
 import { Mic, Monitor, Square, Play, Pause } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 
 type ViewMode = 'transcription' | 'analysis' | 'chat' | 'notes' | 'controls';
+
+interface Project {
+  id: number;
+  name: string;
+  color?: string;
+}
 
 export function MeetingView() {
   const {
@@ -21,11 +28,19 @@ export function MeetingView() {
   const [duration, setDuration] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>('controls');
   const [notes, setNotes] = useState<string>('');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
 
-  // Load user notes when meeting changes
+  // Load projects on mount
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  // Load user notes and meeting details when meeting changes
   useEffect(() => {
     if (activeMeetingId) {
       loadUserNotes();
+      loadMeetingDetails();
     }
   }, [activeMeetingId]);
 
@@ -49,11 +64,40 @@ export function MeetingView() {
     return () => clearInterval(interval);
   }, []);
 
+  const loadProjects = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.PROJECTS);
+      const data = await response.json();
+      if (data.success) {
+        console.log('Proyectos cargados:', data.data);
+        setProjects(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    }
+  };
+
+  const loadMeetingDetails = async () => {
+    if (!activeMeetingId) return;
+
+    try {
+      const response = await fetch(API_ENDPOINTS.MEETING_BY_ID(activeMeetingId));
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setCurrentProjectId(result.data.project_id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load meeting details:', error);
+    }
+  };
+
   const loadUserNotes = async () => {
     if (!activeMeetingId) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/v1/ai/notes/${activeMeetingId}`);
+      const response = await fetch(API_ENDPOINTS.AI_NOTES(activeMeetingId));
 
       if (response.ok) {
         const result = await response.json();
@@ -70,7 +114,7 @@ export function MeetingView() {
     if (!activeMeetingId || !notes.trim()) return;
 
     try {
-      await fetch(`http://localhost:3000/api/v1/ai/notes/${activeMeetingId}`, {
+      await fetch(API_ENDPOINTS.AI_NOTES(activeMeetingId), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: notes }),
@@ -102,12 +146,50 @@ export function MeetingView() {
     }
   };
 
+  const handleProjectChange = async (projectId: number | null) => {
+    if (!activeMeetingId) return;
+
+    console.log('Cambiando proyecto a:', projectId);
+
+    try {
+      const response = await fetch(API_ENDPOINTS.MEETING_BY_ID(activeMeetingId), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId }),
+      });
+
+      if (response.ok) {
+        setCurrentProjectId(projectId);
+        console.log(`✅ Meeting ${activeMeetingId} asociado al proyecto ${projectId}`);
+      } else {
+        console.error('❌ Failed to update meeting project');
+      }
+    } catch (error) {
+      console.error('❌ Error updating meeting project:', error);
+    }
+  };
+
   return (
     <div className="meeting-view">
       <div className="meeting-header">
         <div className="meeting-info">
           <h2>{meetingTitle}</h2>
-          <span className="meeting-id">Meeting #{activeMeetingId}</span>
+          <div className="meeting-meta">
+            <span className="meeting-id">Meeting #{activeMeetingId}</span>
+            <select
+              value={currentProjectId || ''}
+              onChange={(e) => handleProjectChange(e.target.value ? parseInt(e.target.value) : null)}
+              className="project-select-compact"
+              title="Asociar a un proyecto"
+            >
+              <option value="">Sin proyecto</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>
+                  📁 {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="meeting-timer">

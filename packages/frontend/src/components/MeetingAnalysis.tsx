@@ -38,7 +38,7 @@ export function MeetingAnalysis({ userNotes = '' }: MeetingAnalysisProps = {}) {
     if (!activeMeetingId) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/v1/ai/analyze/${activeMeetingId}`, {
+      const response = await fetch(`http://localhost:3001/api/v1/ai/analyze/${activeMeetingId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ forceRefresh: false }),
@@ -61,7 +61,7 @@ export function MeetingAnalysis({ userNotes = '' }: MeetingAnalysisProps = {}) {
     setIsAnalyzing(true);
     try {
       // Call backend AI service with force refresh
-      const response = await fetch(`http://localhost:3000/api/v1/ai/analyze/${activeMeetingId}`, {
+      const response = await fetch(`http://localhost:3001/api/v1/ai/analyze/${activeMeetingId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

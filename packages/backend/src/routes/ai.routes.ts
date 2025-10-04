@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { TranscriptionModel, MeetingAnalysisModel, ChatMessageModel, UserNotesModel } from '../models';
+import { TranscriptionModel, MeetingAnalysisModel, ChatMessageModel, UserNotesModel, MeetingModel, ProjectDocumentModel } from '../models';
 import { aiService } from '../services/aiService';
 import { logger } from '../config/logger';
 import pool from '../config/database';
@@ -42,6 +42,9 @@ router.post('/analyze/:meetingId', async (req, res) => {
       }
     }
 
+    // Get meeting to find project_id
+    const meeting = await MeetingModel.findById(parseInt(meetingId));
+
     // Get all transcriptions for the meeting
     const transcriptions = await TranscriptionModel.findByMeetingId(
       parseInt(meetingId),
@@ -55,10 +58,23 @@ router.post('/analyze/:meetingId', async (req, res) => {
       });
     }
 
+    // Detect language from transcriptions (use the first one with a language)
+    const language = transcriptions.find((t: any) => t.language)?.language || 'es';
+    logger.info(`Using language ${language} for analysis`);
+
     // Build transcript text
     let transcript = transcriptions
       .map((t: any) => `[${t.timestamp}] ${t.speaker || 'Unknown'}: ${t.content}`)
       .join('\n');
+
+    // Add project documentation if meeting belongs to a project
+    if (meeting?.project_id) {
+      const projectDocs = await ProjectDocumentModel.getDocumentsContextForProject(meeting.project_id);
+      if (projectDocs) {
+        transcript += `\n\n=== Project Documentation ===\n${projectDocs}`;
+        logger.info(`Including project documentation in analysis for project ${meeting.project_id}`);
+      }
+    }
 
     // Add user notes if provided
     if (userNotes) {
@@ -67,17 +83,17 @@ router.post('/analyze/:meetingId', async (req, res) => {
       await userNotesModel.upsert(parseInt(meetingId), userNotes);
     }
 
-    // Analyze with Claude
-    const analysis = await aiService.analyzeMeeting(transcript);
+    // Analyze with Claude (pass language)
+    const analysis = await aiService.analyzeMeeting(transcript, language);
 
-    // Extract action items
-    const actionItems = await aiService.detectActionItems(transcript);
+    // Extract action items (pass language)
+    const actionItems = await aiService.detectActionItems(transcript, language);
 
-    // Detect topics
-    const topics = await aiService.detectTopics(transcript);
+    // Detect topics (pass language)
+    const topics = await aiService.detectTopics(transcript, language);
 
-    // Analyze sentiment
-    const sentiment = await aiService.analyzeSentiment(transcript);
+    // Analyze sentiment (pass language)
+    const sentiment = await aiService.analyzeSentiment(transcript, language);
 
     // Get participants
     const participants = [...new Set(
@@ -152,24 +168,51 @@ router.post('/chat/:meetingId', async (req, res) => {
       context: context || null,
     });
 
+    // Get meeting to find project_id
+    const meeting = await MeetingModel.findById(parseInt(meetingId));
+
     // Get transcriptions
     const transcriptions = await TranscriptionModel.findByMeetingId(
       parseInt(meetingId),
       { limit: 1000, offset: 0 }
     );
 
+    // Detect language from transcriptions
+    const language = transcriptions.find((t: any) => t.language)?.language || 'es';
+    logger.info(`Using language ${language} for chat response`);
+
     // Build transcript context
     const transcript = transcriptions
       .map((t: any) => `[${t.timestamp}] ${t.speaker || 'Unknown'}: ${t.content}`)
       .join('\n');
 
-    // Add additional context documents if provided
-    const fullContext = context
-      ? `${transcript}\n\n=== Additional Context ===\n${context}`
-      : transcript;
+    // Get project documentation if meeting belongs to a project
+    let projectDocsContext = '';
+    if (meeting?.project_id) {
+      logger.info(`Meeting ${meetingId} is associated with project ${meeting.project_id}`);
+      projectDocsContext = await ProjectDocumentModel.getDocumentsContextForProject(meeting.project_id);
+      if (projectDocsContext) {
+        logger.info(`Including project documentation for project ${meeting.project_id} (${projectDocsContext.length} chars)`);
+      } else {
+        logger.warn(`No documentation found for project ${meeting.project_id}`);
+      }
+    } else {
+      logger.info(`Meeting ${meetingId} is not associated with any project`);
+    }
 
-    // Get AI response
-    const response = await aiService.askQuestion(question, fullContext);
+    // Build full context with transcripts, project docs, and additional context
+    let fullContext = transcript;
+
+    if (projectDocsContext) {
+      fullContext += `\n\n=== Project Documentation ===\n${projectDocsContext}`;
+    }
+
+    if (context) {
+      fullContext += `\n\n=== Additional Context ===\n${context}`;
+    }
+
+    // Get AI response (pass language)
+    const response = await aiService.askQuestion(question, fullContext, language);
 
     // Save assistant message
     await chatMessageModel.create({
