@@ -6,6 +6,9 @@ const router = Router();
 // GET /api/v1/transcriptions/search - Search transcriptions
 router.get('/search', TranscriptionController.search);
 
+// GET /api/v1/transcriptions - List transcriptions (with optional meeting_id filter)
+router.get('/', TranscriptionController.list);
+
 // POST /api/v1/transcriptions - Create a new transcription
 router.post('/', TranscriptionController.create);
 

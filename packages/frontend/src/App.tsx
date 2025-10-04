@@ -3,6 +3,8 @@ import { useAppStore } from './store/appStore';
 import { Dashboard } from './components/Dashboard';
 import { MeetingView } from './components/MeetingView';
 import { ProjectManager } from './components/ProjectManager';
+import { ProjectDetails } from './components/ProjectDetails';
+import { MeetingDetails } from './components/MeetingDetails';
 import './styles/App.css';
 
 function App() {
@@ -44,6 +46,8 @@ function App() {
       {selectedView === 'dashboard' && <Dashboard />}
       {selectedView === 'meeting' && <MeetingView />}
       {selectedView === 'settings' && <ProjectManager />}
+      {selectedView === 'project-details' && <ProjectDetails />}
+      {selectedView === 'meeting-details' && <MeetingDetails />}
     </div>
   );
 }

@@ -5,6 +5,42 @@ import { logger } from '../config/logger';
 
 export class TranscriptionController {
   /**
+   * GET /api/v1/transcriptions
+   * List all transcriptions with optional meeting_id filter
+   */
+  static async list(req: Request, res: Response): Promise<void> {
+    try {
+      const meetingId = req.query.meeting_id ? parseInt(req.query.meeting_id as string) : undefined;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+
+      if (meetingId) {
+        const transcriptions = await TranscriptionModel.findByMeetingId(meetingId, {
+          limit,
+          offset,
+        });
+
+        res.json({
+          success: true,
+          data: transcriptions,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: 'meeting_id parameter is required',
+        });
+      }
+    } catch (error) {
+      logger.error('Error listing transcriptions:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to list transcriptions',
+      });
+    }
+  }
+
+  /**
    * GET /api/v1/meetings/:meetingId/transcriptions
    * List all transcriptions for a meeting
    */

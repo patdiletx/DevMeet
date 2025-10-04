@@ -28,8 +28,12 @@ interface AppState {
   clearTranscriptions: () => void;
 
   // UI state
-  selectedView: 'dashboard' | 'meeting' | 'settings';
-  setView: (view: 'dashboard' | 'meeting' | 'settings') => void;
+  selectedView: 'dashboard' | 'meeting' | 'settings' | 'project-details' | 'meeting-details';
+  setView: (view: 'dashboard' | 'meeting' | 'settings' | 'project-details' | 'meeting-details') => void;
+  currentProjectId: number | null;
+  setCurrentProjectId: (id: number | null) => void;
+  currentMeetingId: number | null;
+  setCurrentMeetingId: (id: number | null) => void;
 
   // Error handling
   error: string | null;
@@ -207,6 +211,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   // UI state
   selectedView: 'dashboard',
   setView: (view) => set({ selectedView: view }),
+  currentProjectId: null,
+  setCurrentProjectId: (id) => set({ currentProjectId: id }),
+  currentMeetingId: null,
+  setCurrentMeetingId: (id) => set({ currentMeetingId: id }),
 
   // Error handling
   error: null,

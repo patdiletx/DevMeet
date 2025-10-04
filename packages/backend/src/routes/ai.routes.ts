@@ -194,10 +194,48 @@ router.post('/chat/:meetingId', async (req, res) => {
 });
 
 /**
- * Get chat history for a meeting
- * GET /api/v1/ai/chat/:meetingId
+ * Get analysis for a meeting
+ * GET /api/v1/ai/analysis/:meetingId
  */
-router.get('/chat/:meetingId', async (req, res) => {
+router.get('/analysis/:meetingId', async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+
+    const analysis = await meetingAnalysisModel.findByMeetingId(parseInt(meetingId));
+
+    if (!analysis) {
+      return res.json({
+        success: true,
+        data: null,
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        summary: analysis.summary,
+        key_points: analysis.key_points,
+        action_items: analysis.action_items,
+        decisions: analysis.decisions,
+        topics: analysis.topics,
+        participants: analysis.participants,
+        sentiment: analysis.sentiment,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Failed to get analysis:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Get chat history for a meeting (messages list)
+ * GET /api/v1/ai/chat/:meetingId/messages
+ */
+router.get('/chat/:meetingId/messages', async (req, res) => {
   try {
     const { meetingId } = req.params;
 

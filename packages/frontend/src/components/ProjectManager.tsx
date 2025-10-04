@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Folder, Plus, Edit2, Trash2, X, ArrowLeft } from 'lucide-react';
+import { Folder, Plus, Edit2, Trash2, X, ArrowLeft, Eye } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 
 interface Project {
@@ -21,7 +21,7 @@ export function ProjectManager() {
     color: '#3b82f6'
   });
 
-  const { setView } = useAppStore();
+  const { setView, setCurrentProjectId } = useAppStore();
   const API_URL = 'http://localhost:3001/api/v1';
 
   useEffect(() => {
@@ -113,6 +113,11 @@ export function ProjectManager() {
     setFormData({ name: '', description: '', color: '#3b82f6' });
     setEditingProject(null);
     setShowForm(false);
+  };
+
+  const handleViewProject = (projectId: number) => {
+    setCurrentProjectId(projectId);
+    setView('project-details');
   };
 
   return (
@@ -216,14 +221,27 @@ export function ProjectManager() {
               </div>
               <div className="project-actions">
                 <button
-                  onClick={() => handleEdit(project)}
+                  onClick={() => handleViewProject(project.id)}
+                  className="btn-icon"
+                  title="Ver detalles"
+                >
+                  <Eye size={16} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit(project);
+                  }}
                   className="btn-icon"
                   title="Editar"
                 >
                   <Edit2 size={16} />
                 </button>
                 <button
-                  onClick={() => handleDelete(project.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(project.id);
+                  }}
                   className="btn-icon btn-danger"
                   title="Eliminar"
                 >
