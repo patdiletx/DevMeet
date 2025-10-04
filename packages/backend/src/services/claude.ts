@@ -221,11 +221,13 @@ Respond in JSON format:
 
     const transcriptText = this.formatTranscriptions(transcriptions);
 
-    const prompt = `Analyze this meeting transcription and identify action items (tasks, TODOs, assignments):
+    const prompt = `Analyze this meeting transcription and identify action items (tasks, TODOs, assignments).
 
 ${transcriptText}
 
-Respond in JSON format as an array:
+IMPORTANT: Respond ONLY with a valid JSON array, nothing else. No explanations, no markdown, just the JSON array.
+
+Format:
 [
   {
     "description": "Task description",
@@ -233,7 +235,9 @@ Respond in JSON format as an array:
     "priority": "low|medium|high|urgent",
     "context": "Brief context about why this is needed"
   }
-]`;
+]
+
+If there are no action items, return an empty array: []`;
 
     return this.executeWithRetry(async () => {
       const response = await this.client!.messages.create({
@@ -248,7 +252,53 @@ Respond in JSON format as an array:
         throw new Error('Unexpected response type from Claude');
       }
 
-      return JSON.parse(content.text);
+      // Extract JSON from response (might be wrapped in markdown or have extra text)
+      let jsonText = content.text.trim();
+
+      // Try to extract from markdown code blocks
+      const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/) || jsonText.match(/```\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[1];
+      }
+
+      // Find the first [ and last ] to extract only JSON array
+      const firstBracket = jsonText.indexOf('[');
+      const lastBracket = jsonText.lastIndexOf(']');
+
+      if (firstBracket !== -1 && lastBracket !== -1) {
+        jsonText = jsonText.substring(firstBracket, lastBracket + 1);
+      }
+
+      const parsed = JSON.parse(jsonText);
+      return Array.isArray(parsed) ? parsed : [];
+    });
+  }
+
+  /**
+   * Chat with Claude using message history
+   */
+  async chat(messages: Array<{ role: 'user' | 'assistant'; content: string }>): Promise<string> {
+    if (!this.client) {
+      throw new Error('Claude API key not configured');
+    }
+
+    return this.executeWithRetry(async () => {
+      const response = await this.client!.messages.create({
+        model: this.config.model!,
+        max_tokens: this.config.maxTokens!,
+        temperature: this.config.temperature!,
+        messages: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+      });
+
+      const content = response.content[0];
+      if (content.type !== 'text') {
+        throw new Error('Unexpected response type from Claude');
+      }
+
+      return content.text;
     });
   }
 
@@ -317,7 +367,18 @@ Only suggest official documentation from trusted sources (official docs, GitHub 
     try {
       // Try to extract JSON from markdown code blocks if present
       const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
-      const jsonText = jsonMatch ? jsonMatch[1] : text;
+      let jsonText = jsonMatch ? jsonMatch[1] : text;
+
+      // Remove any leading/trailing whitespace and non-JSON content
+      jsonText = jsonText.trim();
+
+      // Find the first { and last } to extract only JSON content
+      const firstBrace = jsonText.indexOf('{');
+      const lastBrace = jsonText.lastIndexOf('}');
+
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+      }
 
       const parsed = JSON.parse(jsonText);
 
@@ -334,6 +395,7 @@ Only suggest official documentation from trusted sources (official docs, GitHub 
       };
     } catch (error) {
       logger.error('Failed to parse Claude response:', error);
+      logger.error('Raw response text:', text);
       throw new Error('Failed to parse AI response');
     }
   }

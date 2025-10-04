@@ -1,9 +1,6 @@
 import { logger } from '../config/logger';
-import { whisperService } from './whisper';
-import { claudeService } from './claude';
+import { audioProcessingService } from './audioProcessingService';
 import { wsService } from './websocket';
-import { TranscriptionModel } from '../models';
-import type { WSMessageType } from '../types/websocket';
 
 /**
  * Audio chunk for processing
@@ -33,13 +30,53 @@ export class AudioProcessorService {
   private buffers: Map<number, AudioBuffer> = new Map();
   private processingInterval: NodeJS.Timeout | null = null;
   private config = {
-    bufferDuration: 10000, // Process every 10 seconds
-    minChunksToProcess: 5, // Minimum chunks before processing
-    maxBufferSize: 50, // Maximum chunks to buffer
+    bufferDuration: 2000, // Check buffer every 2 seconds
+    minChunksToProcess: 1, // Process each chunk immediately (they're complete audio files)
+    maxBufferSize: 5, // Maximum chunks to buffer before processing
   };
 
   constructor() {
     this.startProcessing();
+    this.setupTranscriptionListener();
+  }
+
+  /**
+   * Set up permanent listener for transcription events
+   */
+  private setupTranscriptionListener(): void {
+    logger.info('Setting up transcription listener...');
+
+    // Check if listener count to detect duplicates
+    const listenerCount = audioProcessingService.listenerCount('transcription');
+    if (listenerCount > 0) {
+      logger.warn(`⚠️ Transcription listener already exists! Count: ${listenerCount}`);
+      return; // Don't add another listener
+    }
+
+    audioProcessingService.on('transcription', (transcription: any) => {
+      logger.info(`📝 AudioProcessor: Received transcription ID ${transcription.transcriptionId}: "${transcription.content.substring(0, 50)}..."`);
+
+      // Get all clients connected to this meeting
+      const meetingId = transcription.meetingId;
+      const clients = wsService.getClientsByMeeting(meetingId);
+
+      logger.info(`📤 AudioProcessor: Sending transcription ID ${transcription.transcriptionId} to ${clients.length} client(s) for meeting ${meetingId}`);
+
+      // Send to all clients in the meeting
+      clients.forEach((clientId, index) => {
+        logger.info(`  → Sending to client ${index + 1}/${clients.length}: ${clientId}`);
+        wsService.sendTranscription(clientId, {
+          id: transcription.transcriptionId,
+          meeting_id: transcription.meetingId,
+          content: transcription.content,
+          speaker: transcription.speaker,
+          timestamp: transcription.timestamp,
+          confidence: transcription.confidence,
+        });
+      });
+    });
+
+    logger.info(`Transcription listener set up. Total listeners: ${audioProcessingService.listenerCount('transcription')}`);
   }
 
   /**
@@ -55,20 +92,22 @@ export class AudioProcessorService {
         totalChunks: 0,
       };
       this.buffers.set(chunk.meetingId, buffer);
+
+      // Initialize audio processing service for this meeting
+      audioProcessingService.initializeMeeting(chunk.meetingId).catch(err => {
+        logger.error(`Failed to initialize audio processing for meeting ${chunk.meetingId}:`, err);
+      });
     }
 
     buffer.chunks.push(chunk);
     buffer.totalChunks++;
 
-    logger.debug(
-      `Audio chunk ${chunk.sequence} added to meeting ${chunk.meetingId} buffer (${buffer.chunks.length} chunks)`
+    logger.info(
+      `Audio chunk ${chunk.sequence} added to meeting ${chunk.meetingId} buffer - processing immediately`
     );
 
-    // Process immediately if buffer is full
-    if (buffer.chunks.length >= this.config.maxBufferSize) {
-      logger.info(`Buffer full for meeting ${chunk.meetingId}, processing immediately`);
-      this.processBuffer(chunk.meetingId);
-    }
+    // Process immediately for real-time transcription
+    this.processBuffer(chunk.meetingId);
   }
 
   /**
@@ -115,132 +154,29 @@ export class AudioProcessorService {
     buffer.chunks = [];
     buffer.lastProcessed = new Date();
 
-    try {
-      // Check if Whisper is configured
-      if (!whisperService.isConfigured()) {
-        logger.warn('Whisper not configured, skipping transcription');
-        return;
-      }
+    // Process each chunk individually (they're already complete audio files from frontend)
+    for (const chunk of chunksToProcess) {
+      try {
+        logger.info(`Processing chunk ${chunk.sequence} for meeting ${meetingId} (${chunk.chunk.length} base64 chars)`);
 
-      // Combine chunks into single audio buffer
-      const combinedAudio = this.combineAudioChunks(chunksToProcess);
+        // Decode base64 to Buffer
+        const audioBuffer = Buffer.from(chunk.chunk, 'base64');
 
-      // Get client ID for sending responses
-      const clientId = chunksToProcess[0]?.clientId;
+        // Process through the integrated pipeline
+        // The transcription will be sent via the permanent listener set up in constructor
+        await audioProcessingService.processAudioChunk({
+          data: audioBuffer,
+          timestamp: chunk.timestamp.getTime(),
+          meetingId,
+          chunkIndex: chunk.sequence,
+        });
 
-      // Transcribe with Whisper
-      const transcription = await whisperService.transcribeBase64(
-        combinedAudio,
-        chunksToProcess[0]?.format || 'webm',
-        {
-          language: 'es',
-          prompt: 'Reunión técnica de desarrolladores. Términos técnicos y código.',
-        }
-      );
+      } catch (error) {
+        logger.error(`Error processing chunk ${chunk.sequence} for meeting ${meetingId}:`, error);
 
-      if (!transcription.text || transcription.text.trim().length === 0) {
-        logger.warn('Empty transcription received, skipping');
-        return;
-      }
-
-      // Save to database
-      const dbTranscription = await TranscriptionModel.create({
-        meeting_id: meetingId,
-        content: transcription.text,
-        timestamp: new Date(),
-        language: transcription.language || 'es',
-        confidence: 0.9, // Whisper doesn't provide confidence, use default
-        metadata: {
-          chunks_processed: chunksToProcess.length,
-          duration: transcription.duration,
-        },
-      });
-
-      logger.info(`Transcription saved: ${dbTranscription.id} for meeting ${meetingId}`);
-
-      // Send transcription to client via WebSocket
-      if (clientId) {
-        wsService.sendTranscription(clientId, dbTranscription);
-      }
-
-      // Optionally: Trigger Claude analysis for action items/notes
-      // This could be done every N transcriptions or on-demand
-      await this.triggerAnalysisIfNeeded(meetingId);
-    } catch (error) {
-      logger.error(`Error processing audio for meeting ${meetingId}:`, error);
-
-      // Send error to client
-      if (chunksToProcess[0]?.clientId) {
+        // Continue processing other chunks
         // TODO: Send error via WebSocket
       }
-    }
-  }
-
-  /**
-   * Combine multiple base64 audio chunks into one
-   * Note: This is a simplified version. In production, you'd want proper audio merging
-   */
-  private combineAudioChunks(chunks: AudioChunk[]): string {
-    // Sort by sequence number
-    chunks.sort((a, b) => a.sequence - b.sequence);
-
-    // For WebM and most formats, we can simply concatenate the base64
-    // For production, consider using ffmpeg or similar for proper merging
-    return chunks.map((c) => c.chunk).join('');
-  }
-
-  /**
-   * Trigger Claude analysis if conditions are met
-   */
-  private async triggerAnalysisIfNeeded(meetingId: number): Promise<void> {
-    try {
-      if (!claudeService.isConfigured()) {
-        return;
-      }
-
-      // Get recent transcriptions
-      const transcriptions = await TranscriptionModel.findByMeetingId(meetingId, {
-        limit: 10,
-        offset: 0,
-      });
-
-      // Only analyze if we have enough content
-      if (transcriptions.length < 5) {
-        return;
-      }
-
-      // Check if we should analyze (e.g., every 10 transcriptions)
-      const totalTranscriptions = transcriptions.length;
-      if (totalTranscriptions % 10 !== 0) {
-        return;
-      }
-
-      logger.info(`Triggering Claude analysis for meeting ${meetingId}`);
-
-      // Detect action items
-      const actionItems = await claudeService.detectActionItems(transcriptions);
-
-      logger.info(`Detected ${actionItems.length} action items for meeting ${meetingId}`);
-
-      // TODO: Save action items to database
-      // TODO: Send action items to clients via WebSocket
-
-      // Broadcast to all clients in this meeting
-      for (const item of actionItems) {
-        wsService.broadcastToMeeting(meetingId, {
-          type: 'action_item' as WSMessageType,
-          timestamp: new Date().toISOString(),
-          data: {
-            meetingId,
-            actionItemId: 0, // TODO: Use real ID after saving to DB
-            description: item.description,
-            assignedTo: item.assignedTo,
-            priority: item.priority,
-          },
-        });
-      }
-    } catch (error) {
-      logger.error(`Error triggering analysis for meeting ${meetingId}:`, error);
     }
   }
 
@@ -252,6 +188,11 @@ export class AudioProcessorService {
     if (buffer) {
       logger.info(`Clearing buffer for meeting ${meetingId} (${buffer.totalChunks} total chunks processed)`);
       this.buffers.delete(meetingId);
+
+      // Clean up audio processing service resources
+      audioProcessingService.cleanupMeeting(meetingId).catch(err => {
+        logger.error(`Failed to cleanup audio processing for meeting ${meetingId}:`, err);
+      });
     }
   }
 

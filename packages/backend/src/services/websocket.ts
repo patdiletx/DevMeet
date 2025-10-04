@@ -16,6 +16,7 @@ import {
   type WSMeetingEndedMessage,
 } from '../types/websocket';
 import { MeetingModel } from '../models';
+import { audioProcessor } from './audioProcessor';
 
 /**
  * WebSocket service for real-time communication
@@ -177,7 +178,6 @@ export class WebSocketService {
         : 0;
 
       // Clear audio buffer for this meeting
-      const { audioProcessor } = await import('./audioProcessor');
       audioProcessor.clearBuffer(meetingId);
 
       // Clear active meeting from client
@@ -218,9 +218,6 @@ export class WebSocketService {
 
       logger.debug(`Received audio chunk ${sequence} for meeting ${meetingId}`);
 
-      // Import audio processor dynamically to avoid circular dependencies
-      const { audioProcessor } = await import('./audioProcessor');
-
       // Add chunk to audio processor
       audioProcessor.addChunk({
         meetingId,
@@ -243,6 +240,11 @@ export class WebSocketService {
     const client = this.clients.get(clientId);
     if (!client) return;
 
+    // Handle timestamp - it might already be a string
+    const timestamp = typeof transcription.timestamp === 'string'
+      ? transcription.timestamp
+      : transcription.timestamp?.toISOString?.() || new Date().toISOString();
+
     const message: WSTranscriptionMessage = {
       type: WSMessageType.TRANSCRIPTION,
       timestamp: new Date().toISOString(),
@@ -252,7 +254,7 @@ export class WebSocketService {
         content: transcription.content,
         speaker: transcription.speaker,
         confidence: transcription.confidence,
-        timestamp: transcription.timestamp?.toISOString() || new Date().toISOString(),
+        timestamp,
       },
     };
 
@@ -377,6 +379,19 @@ export class WebSocketService {
    */
   public getClient(clientId: string): WSClient | undefined {
     return this.clients.get(clientId);
+  }
+
+  /**
+   * Get all client IDs for a specific meeting
+   */
+  public getClientsByMeeting(meetingId: number): string[] {
+    const clientIds: string[] = [];
+    this.clients.forEach((client, clientId) => {
+      if (client.activeMeetingId === meetingId) {
+        clientIds.push(clientId);
+      }
+    });
+    return clientIds;
   }
 
   /**

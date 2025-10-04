@@ -16,7 +16,11 @@ contextBridge.exposeInMainWorld('electron', {
   startMeeting: (config: any) => ipcRenderer.invoke('start-meeting', config),
   endMeeting: () => ipcRenderer.invoke('end-meeting'),
 
-  // Audio Capture
+  // Audio Capture - now handled in renderer process, just send chunks to backend
+  sendAudioChunk: (chunk: ArrayBuffer, sequence: number) =>
+    ipcRenderer.invoke('send-audio-chunk', chunk, sequence),
+
+  // Legacy audio capture (deprecated)
   startAudioCapture: (type: 'microphone' | 'system') =>
     ipcRenderer.invoke('start-audio-capture', type),
   stopAudioCapture: () => ipcRenderer.invoke('stop-audio-capture'),

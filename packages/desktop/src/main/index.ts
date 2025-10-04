@@ -1,12 +1,12 @@
 import { app, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeImage } from 'electron';
 import path from 'path';
 import { WebSocketClient, MeetingConfig } from './websocket';
-import { AudioCaptureService } from './audioCapture';
+// import { AudioCaptureService } from './audioCapture'; // Temporarily disabled
 
 let mainWindow: BrowserWindow | null = null;
 let wsClient: WebSocketClient | null = null;
 let tray: Tray | null = null;
-let audioCapture: AudioCaptureService | null = null;
+// let audioCapture: AudioCaptureService | null = null; // Temporarily disabled
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -20,7 +20,10 @@ const createWindow = () => {
   });
 
   // Load the frontend (in dev mode, this would be the Vite dev server)
-  if (process.env.NODE_ENV === 'development') {
+  // Check if we're in development by looking for the Vite dev server
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+  if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
@@ -201,9 +204,12 @@ function initializeWebSocket() {
   });
 
   wsClient.on('transcription', (data) => {
-    console.log('New transcription:', data.content);
+    console.log('📝 Desktop: Received transcription from backend:', data.content?.substring(0, 50));
     if (mainWindow) {
+      console.log('📤 Desktop: Forwarding transcription to renderer');
       mainWindow.webContents.send('transcription', data);
+    } else {
+      console.warn('⚠️ Desktop: Main window not available, cannot forward transcription');
     }
   });
 
@@ -286,16 +292,22 @@ ipcMain.handle('get-ws-status', () => {
 /**
  * Send audio chunk
  */
-ipcMain.handle('send-audio-chunk', (_event, chunk: Buffer, sequence: number) => {
+ipcMain.handle('send-audio-chunk', (_event, chunk: ArrayBuffer, sequence: number) => {
   try {
     if (!wsClient) {
       throw new Error('WebSocket client not initialized');
     }
 
-    wsClient.sendAudioChunk(chunk, sequence);
+    // Convert ArrayBuffer to Buffer
+    const buffer = Buffer.from(chunk);
+    console.log(`🎵 Desktop: Sending audio chunk #${sequence}, size: ${buffer.length} bytes`);
+
+    wsClient.sendAudioChunk(buffer, sequence);
+    console.log(`✅ Desktop: Audio chunk #${sequence} sent to WebSocket`);
+
     return { success: true };
   } catch (error: any) {
-    console.error('Failed to send audio chunk:', error);
+    console.error('❌ Desktop: Failed to send audio chunk:', error);
     return { success: false, error: error.message };
   }
 });
@@ -303,8 +315,13 @@ ipcMain.handle('send-audio-chunk', (_event, chunk: Buffer, sequence: number) => 
 /**
  * Start audio capture
  */
-ipcMain.handle('start-audio-capture', async (_event, type: 'microphone' | 'system' = 'microphone') => {
+ipcMain.handle('start-audio-capture', async (_event, _type: 'microphone' | 'system' = 'microphone') => {
   try {
+    // TODO: Audio capture needs to be refactored to run in renderer process
+    console.warn('Audio capture is temporarily disabled - needs renderer process implementation');
+    return { success: false, error: 'Audio capture not yet implemented' };
+
+    /* Commented out until refactored for renderer process
     if (!audioCapture) {
       audioCapture = new AudioCaptureService();
 
@@ -345,6 +362,7 @@ ipcMain.handle('start-audio-capture', async (_event, type: 'microphone' | 'syste
     }
 
     return { success: true };
+    */
   } catch (error: any) {
     console.error('Failed to start audio capture:', error);
     return { success: false, error: error.message };
@@ -356,13 +374,7 @@ ipcMain.handle('start-audio-capture', async (_event, type: 'microphone' | 'syste
  */
 ipcMain.handle('stop-audio-capture', async () => {
   try {
-    if (!audioCapture) {
-      return { success: true };
-    }
-
-    await audioCapture.stopCapture();
-    audioCapture = null;
-
+    // TODO: Audio capture temporarily disabled
     return { success: true };
   } catch (error: any) {
     console.error('Failed to stop audio capture:', error);
@@ -375,7 +387,7 @@ ipcMain.handle('stop-audio-capture', async () => {
  */
 ipcMain.handle('get-audio-status', () => {
   return {
-    isRecording: audioCapture?.isCurrentlyRecording() ?? false,
-    sequence: audioCapture?.getCurrentSequence() ?? 0,
+    isRecording: false, // audioCapture?.isCurrentlyRecording() ?? false,
+    sequence: 0, // audioCapture?.getCurrentSequence() ?? 0,
   };
 });
