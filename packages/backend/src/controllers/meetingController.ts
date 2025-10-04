@@ -13,11 +13,12 @@ export class MeetingController {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
       const status = req.query.status as any;
+      const project_id = req.query.project_id ? parseInt(req.query.project_id as string) : undefined;
 
       const offset = (page - 1) * limit;
 
       const [meetings, total] = await Promise.all([
-        MeetingModel.findAll({ status, limit, offset }),
+        MeetingModel.findAll({ status, project_id, limit, offset }),
         MeetingModel.count(status),
       ]);
 
@@ -125,6 +126,7 @@ export class MeetingController {
       const input: CreateMeetingInput = {
         title: req.body.title,
         description: req.body.description,
+        project_id: req.body.project_id,
         metadata: req.body.metadata,
       };
 
@@ -172,6 +174,7 @@ export class MeetingController {
       const input: UpdateMeetingInput = {
         title: req.body.title,
         description: req.body.description,
+        project_id: req.body.project_id,
         ended_at: req.body.ended_at,
         status: req.body.status,
         audio_file_path: req.body.audio_file_path,

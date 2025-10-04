@@ -1,10 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
-import { Mic, Monitor, Video, AlertCircle } from 'lucide-react';
+import { Mic, Monitor, Video, AlertCircle, Folder } from 'lucide-react';
+
+interface Project {
+  id: number;
+  name: string;
+  color?: string;
+}
 
 export function Dashboard() {
   const [meetingTitle, setMeetingTitle] = useState('');
-  const { isConnected, startMeeting, error, setError } = useAppStore();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const { isConnected, startMeeting, error, setError, selectedProjectId, setSelectedProjectId, setView } = useAppStore();
+
+  const API_URL = 'http://localhost:3001/api/v1';
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      const response = await fetch(`${API_URL}/projects`);
+      const data = await response.json();
+      if (data.success) {
+        setProjects(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    }
+  };
 
   const handleStartMeeting = async () => {
     if (!meetingTitle.trim()) {
@@ -12,7 +37,7 @@ export function Dashboard() {
       return;
     }
 
-    await startMeeting(meetingTitle);
+    await startMeeting(meetingTitle, selectedProjectId || undefined);
     setMeetingTitle('');
   };
 
@@ -23,6 +48,10 @@ export function Dashboard() {
         <div className="status-indicator">
           <div className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`} />
           <span>{isConnected ? 'Connected to backend' : 'Disconnected'}</span>
+          <button onClick={() => setView('settings')} className="btn-secondary btn-sm" style={{ marginLeft: '1rem' }}>
+            <Folder size={16} />
+            Proyectos
+          </button>
         </div>
       </div>
 
@@ -40,6 +69,19 @@ export function Dashboard() {
           <p>Capture, transcribe, and analyze your technical meetings in real-time</p>
 
           <div className="start-meeting-form">
+            <select
+              value={selectedProjectId || ''}
+              onChange={(e) => setSelectedProjectId(e.target.value ? parseInt(e.target.value) : null)}
+              className="project-select"
+              disabled={!isConnected}
+            >
+              <option value="">Sin proyecto</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
             <input
               type="text"
               placeholder="Enter meeting title..."

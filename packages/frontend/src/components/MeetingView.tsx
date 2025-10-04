@@ -22,6 +22,24 @@ export function MeetingView() {
   const [viewMode, setViewMode] = useState<ViewMode>('controls');
   const [notes, setNotes] = useState<string>('');
 
+  // Load user notes when meeting changes
+  useEffect(() => {
+    if (activeMeetingId) {
+      loadUserNotes();
+    }
+  }, [activeMeetingId]);
+
+  // Auto-save notes with debounce
+  useEffect(() => {
+    if (!activeMeetingId || !notes) return;
+
+    const timeoutId = setTimeout(() => {
+      saveUserNotes();
+    }, 2000); // Auto-save after 2 seconds of no typing
+
+    return () => clearTimeout(timeoutId);
+  }, [notes, activeMeetingId]);
+
   // Timer for meeting duration
   useEffect(() => {
     const interval = setInterval(() => {
@@ -30,6 +48,37 @@ export function MeetingView() {
 
     return () => clearInterval(interval);
   }, []);
+
+  const loadUserNotes = async () => {
+    if (!activeMeetingId) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/v1/ai/notes/${activeMeetingId}`);
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.data) {
+          setNotes(result.data.content || '');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load user notes:', error);
+    }
+  };
+
+  const saveUserNotes = async () => {
+    if (!activeMeetingId || !notes.trim()) return;
+
+    try {
+      await fetch(`http://localhost:3000/api/v1/ai/notes/${activeMeetingId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: notes }),
+      });
+    } catch (error) {
+      console.error('Failed to save user notes:', error);
+    }
+  };
 
   const formatDuration = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);

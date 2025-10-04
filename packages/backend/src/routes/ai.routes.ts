@@ -1,9 +1,14 @@
 import { Router } from 'express';
-import { TranscriptionModel } from '../models';
+import { TranscriptionModel, MeetingAnalysisModel, ChatMessageModel, UserNotesModel } from '../models';
 import { aiService } from '../services/aiService';
 import { logger } from '../config/logger';
+import pool from '../config/database';
 
 const router = Router();
+
+const meetingAnalysisModel = new MeetingAnalysisModel(pool);
+const chatMessageModel = new ChatMessageModel(pool);
+const userNotesModel = new UserNotesModel(pool);
 
 /**
  * Analyze meeting transcriptions
@@ -12,9 +17,30 @@ const router = Router();
 router.post('/analyze/:meetingId', async (req, res) => {
   try {
     const { meetingId } = req.params;
-    const { userNotes } = req.body;
+    const { userNotes, forceRefresh } = req.body;
 
     logger.info(`Analyzing meeting ${meetingId}`);
+
+    // Check if analysis already exists and force refresh is not requested
+    if (!forceRefresh) {
+      const existingAnalysis = await meetingAnalysisModel.findByMeetingId(parseInt(meetingId));
+      if (existingAnalysis) {
+        logger.info(`Returning cached analysis for meeting ${meetingId}`);
+        return res.json({
+          success: true,
+          data: {
+            summary: existingAnalysis.summary,
+            keyPoints: existingAnalysis.key_points,
+            actionItems: existingAnalysis.action_items,
+            decisions: existingAnalysis.decisions,
+            topics: existingAnalysis.topics,
+            participants: existingAnalysis.participants,
+            sentiment: existingAnalysis.sentiment,
+          },
+          cached: true,
+        });
+      }
+    }
 
     // Get all transcriptions for the meeting
     const transcriptions = await TranscriptionModel.findByMeetingId(
@@ -37,6 +63,8 @@ router.post('/analyze/:meetingId', async (req, res) => {
     // Add user notes if provided
     if (userNotes) {
       transcript += `\n\n=== Apuntes del Usuario ===\n${userNotes}`;
+      // Save user notes
+      await userNotesModel.upsert(parseInt(meetingId), userNotes);
     }
 
     // Analyze with Claude
@@ -69,9 +97,25 @@ router.post('/analyze/:meetingId', async (req, res) => {
       sentiment,
     };
 
+    // Save analysis to database
+    await meetingAnalysisModel.upsert({
+      meeting_id: parseInt(meetingId),
+      summary: analysisData.summary,
+      key_points: analysisData.keyPoints,
+      action_items: analysisData.actionItems,
+      decisions: analysisData.decisions,
+      topics: analysisData.topics,
+      participants: analysisData.participants,
+      sentiment: analysisData.sentiment,
+      user_notes: userNotes || null,
+    });
+
+    logger.info(`Analysis saved for meeting ${meetingId}`);
+
     return res.json({
       success: true,
       data: analysisData,
+      cached: false,
     });
   } catch (error: any) {
     logger.error('Failed to analyze meeting:', error);
@@ -100,6 +144,14 @@ router.post('/chat/:meetingId', async (req, res) => {
 
     logger.info(`AI chat for meeting ${meetingId}: ${question.substring(0, 50)}...`);
 
+    // Save user message
+    await chatMessageModel.create({
+      meeting_id: parseInt(meetingId),
+      role: 'user',
+      content: question,
+      context: context || null,
+    });
+
     // Get transcriptions
     const transcriptions = await TranscriptionModel.findByMeetingId(
       parseInt(meetingId),
@@ -119,6 +171,13 @@ router.post('/chat/:meetingId', async (req, res) => {
     // Get AI response
     const response = await aiService.askQuestion(question, fullContext);
 
+    // Save assistant message
+    await chatMessageModel.create({
+      meeting_id: parseInt(meetingId),
+      role: 'assistant',
+      content: response,
+    });
+
     return res.json({
       success: true,
       data: {
@@ -127,6 +186,83 @@ router.post('/chat/:meetingId', async (req, res) => {
     });
   } catch (error: any) {
     logger.error('Failed to process AI chat:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Get chat history for a meeting
+ * GET /api/v1/ai/chat/:meetingId
+ */
+router.get('/chat/:meetingId', async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+
+    const messages = await chatMessageModel.findByMeetingId(parseInt(meetingId));
+
+    return res.json({
+      success: true,
+      data: messages,
+    });
+  } catch (error: any) {
+    logger.error('Failed to get chat history:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Get user notes for a meeting
+ * GET /api/v1/ai/notes/:meetingId
+ */
+router.get('/notes/:meetingId', async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+
+    const notes = await userNotesModel.findByMeetingId(parseInt(meetingId));
+
+    return res.json({
+      success: true,
+      data: notes,
+    });
+  } catch (error: any) {
+    logger.error('Failed to get user notes:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Save user notes for a meeting
+ * POST /api/v1/ai/notes/:meetingId
+ */
+router.post('/notes/:meetingId', async (req, res) => {
+  try {
+    const { meetingId } = req.params;
+    const { content } = req.body;
+
+    if (!content) {
+      return res.status(400).json({
+        success: false,
+        error: 'Content is required',
+      });
+    }
+
+    const notes = await userNotesModel.upsert(parseInt(meetingId), content);
+
+    return res.json({
+      success: true,
+      data: notes,
+    });
+  } catch (error: any) {
+    logger.error('Failed to save user notes:', error);
     return res.status(500).json({
       success: false,
       error: error.message,

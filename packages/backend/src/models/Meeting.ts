@@ -20,15 +20,30 @@ export class MeetingModel {
    */
   static async findAll(options?: {
     status?: MeetingStatus;
+    project_id?: number;
     limit?: number;
     offset?: number;
   }): Promise<Meeting[]> {
     let sql = 'SELECT * FROM meetings';
     const params: any[] = [];
+    const conditions: string[] = [];
 
     if (options?.status) {
-      sql += ' WHERE status = $1';
+      conditions.push(`status = $${params.length + 1}`);
       params.push(options.status);
+    }
+
+    if (options?.project_id !== undefined) {
+      if (options.project_id === null) {
+        conditions.push(`project_id IS NULL`);
+      } else {
+        conditions.push(`project_id = $${params.length + 1}`);
+        params.push(options.project_id);
+      }
+    }
+
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
     }
 
     sql += ' ORDER BY started_at DESC';
@@ -68,12 +83,17 @@ export class MeetingModel {
    */
   static async create(input: CreateMeetingInput): Promise<Meeting> {
     const sql = `
-      INSERT INTO meetings (title, description, started_at, metadata)
-      VALUES ($1, $2, NOW(), $3)
+      INSERT INTO meetings (title, description, project_id, started_at, metadata)
+      VALUES ($1, $2, $3, NOW(), $4)
       RETURNING *
     `;
 
-    const params = [input.title, input.description || null, input.metadata || {}];
+    const params = [
+      input.title,
+      input.description || null,
+      input.project_id || null,
+      input.metadata || {}
+    ];
 
     const result = await query(sql, params);
     return result.rows[0];
@@ -95,6 +115,11 @@ export class MeetingModel {
     if (input.description !== undefined) {
       fields.push(`description = $${paramCount++}`);
       params.push(input.description);
+    }
+
+    if (input.project_id !== undefined) {
+      fields.push(`project_id = $${paramCount++}`);
+      params.push(input.project_id);
     }
 
     if (input.ended_at !== undefined) {

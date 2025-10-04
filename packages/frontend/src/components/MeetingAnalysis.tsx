@@ -27,19 +27,46 @@ export function MeetingAnalysis({ userNotes = '' }: MeetingAnalysisProps = {}) {
   const [analysis, setAnalysis] = useState<MeetingAnalysisData | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Removed auto-analyze - now on-demand only
+  // Load cached analysis when component mounts or meeting changes
+  useEffect(() => {
+    if (activeMeetingId) {
+      loadCachedAnalysis();
+    }
+  }, [activeMeetingId]);
+
+  const loadCachedAnalysis = async () => {
+    if (!activeMeetingId) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/v1/ai/analyze/${activeMeetingId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceRefresh: false }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.cached) {
+          setAnalysis(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load cached analysis:', error);
+    }
+  };
 
   const analyzeTranscriptions = async () => {
     if (!activeMeetingId || transcriptions.length === 0) return;
 
     setIsAnalyzing(true);
     try {
-      // Call backend AI service
+      // Call backend AI service with force refresh
       const response = await fetch(`http://localhost:3000/api/v1/ai/analyze/${activeMeetingId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userNotes: userNotes && userNotes.trim() ? userNotes : undefined,
+          forceRefresh: true,
         }),
       });
 

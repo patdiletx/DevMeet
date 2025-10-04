@@ -7,6 +7,7 @@ export interface Meeting {
   id: number;
   title: string;
   description?: string;
+  project_id?: number;
   started_at: Date;
   ended_at?: Date;
   status: MeetingStatus;
@@ -21,12 +22,14 @@ export type MeetingStatus = 'active' | 'ended' | 'processing' | 'completed';
 export interface CreateMeetingInput {
   title: string;
   description?: string;
+  project_id?: number;
   metadata?: Record<string, any>;
 }
 
 export interface UpdateMeetingInput {
   title?: string;
   description?: string;
+  project_id?: number;
   ended_at?: Date;
   status?: MeetingStatus;
   audio_file_path?: string;

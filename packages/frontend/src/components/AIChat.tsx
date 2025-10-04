@@ -22,24 +22,67 @@ interface AIChatProps {
 
 export function AIChat({ userNotes = '' }: AIChatProps = {}) {
   const { transcriptions, activeMeetingId } = useAppStore();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: '¡Hola! Soy tu asistente de IA. Puedo ayudarte a analizar la reunión, responder preguntas sobre lo discutido, o consultar documentos que hayas cargado. ¿En qué puedo ayudarte?',
-      timestamp: new Date(),
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [contextDocuments, setContextDocuments] = useState<ContextDocument[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load chat history when meeting changes
+  useEffect(() => {
+    if (activeMeetingId) {
+      loadChatHistory();
+    }
+  }, [activeMeetingId]);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const loadChatHistory = async () => {
+    if (!activeMeetingId) return;
+
+    setIsLoadingHistory(true);
+    try {
+      const response = await fetch(`http://localhost:3000/api/v1/ai/chat/${activeMeetingId}`);
+
+      if (response.ok) {
+        const result = await response.json();
+        const history = result.data.map((msg: any) => ({
+          id: msg.id.toString(),
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+        }));
+
+        if (history.length === 0) {
+          // Add welcome message if no history
+          setMessages([{
+            id: '1',
+            role: 'assistant',
+            content: '¡Hola! Soy tu asistente de IA. Puedo ayudarte a analizar la reunión, responder preguntas sobre lo discutido, o consultar documentos que hayas cargado. ¿En qué puedo ayudarte?',
+            timestamp: new Date(),
+          }]);
+        } else {
+          setMessages(history);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+      // Show welcome message on error
+      setMessages([{
+        id: '1',
+        role: 'assistant',
+        content: '¡Hola! Soy tu asistente de IA. Puedo ayudarte a analizar la reunión, responder preguntas sobre lo discutido, o consultar documentos que hayas cargado. ¿En qué puedo ayudarte?',
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading || !activeMeetingId) return;

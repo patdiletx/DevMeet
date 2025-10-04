@@ -11,7 +11,9 @@ interface AppState {
   activeMeetingId: number | null;
   meetingTitle: string;
   isInMeeting: boolean;
-  startMeeting: (title: string) => Promise<void>;
+  selectedProjectId: number | null;
+  setSelectedProjectId: (projectId: number | null) => void;
+  startMeeting: (title: string, projectId?: number) => Promise<void>;
   endMeeting: () => Promise<void>;
 
   // Audio state
@@ -46,14 +48,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeMeetingId: null,
   meetingTitle: '',
   isInMeeting: false,
+  selectedProjectId: null,
+  setSelectedProjectId: (projectId) => set({ selectedProjectId: projectId }),
 
-  startMeeting: async (title: string) => {
+  startMeeting: async (title: string, projectId?: number) => {
     try {
       set({ error: null });
 
       const result = await window.electron.startMeeting({
         title,
         description: `Meeting started at ${new Date().toLocaleTimeString()}`,
+        project_id: projectId || get().selectedProjectId,
         metadata: { startedFrom: 'webapp' },
       });
 

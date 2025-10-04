@@ -158,8 +158,14 @@ export class WebSocketService {
     try {
       const { meetingId } = message.data;
 
-      // Verify client owns this meeting
-      if (client.activeMeetingId !== meetingId) {
+      logger.info(`Client ${client.id} requesting to end meeting ${meetingId}. Active meeting: ${client.activeMeetingId}`);
+
+      // Verify client owns this meeting (handle both string and number comparison)
+      const clientMeetingId = Number(client.activeMeetingId);
+      const requestedMeetingId = Number(meetingId);
+
+      if (clientMeetingId !== requestedMeetingId) {
+        logger.error(`Meeting mismatch: client has ${clientMeetingId}, requesting ${requestedMeetingId}`);
         this.sendError(client, 'UNAUTHORIZED', 'Meeting does not belong to this client');
         return;
       }

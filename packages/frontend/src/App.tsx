@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAppStore } from './store/appStore';
 import { Dashboard } from './components/Dashboard';
 import { MeetingView } from './components/MeetingView';
+import { ProjectManager } from './components/ProjectManager';
 import './styles/App.css';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
     <div className="app">
       {selectedView === 'dashboard' && <Dashboard />}
       {selectedView === 'meeting' && <MeetingView />}
+      {selectedView === 'settings' && <ProjectManager />}
     </div>
   );
 }
