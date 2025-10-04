@@ -26,6 +26,10 @@ export const API_ENDPOINTS = {
   AI_CHAT_MESSAGES: (meetingId: number) => `${API_CONFIG.BASE_URL}/api/v1/ai/chat/${meetingId}/messages`,
   AI_NOTES: (meetingId: number) => `${API_CONFIG.BASE_URL}/api/v1/ai/notes/${meetingId}`,
 
+  // Project AI Chat
+  PROJECT_CHAT: (projectId: number) => `${API_CONFIG.BASE_URL}/api/v1/ai/project/${projectId}/chat`,
+  PROJECT_CHAT_MESSAGES: (projectId: number) => `${API_CONFIG.BASE_URL}/api/v1/ai/project/${projectId}/chat/messages`,
+
   // Transcriptions
   TRANSCRIPTIONS: (meetingId: number) => `${API_CONFIG.BASE_URL}/api/v1/transcriptions/meeting/${meetingId}`,
 } as const;

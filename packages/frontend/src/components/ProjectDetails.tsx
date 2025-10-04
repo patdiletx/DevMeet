@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, Clock, FileText, MessageSquare, Upload, Trash2, Plus } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
+import { ProjectChat } from './ProjectChat';
 
 interface Meeting {
   id: number;
@@ -411,6 +412,17 @@ export function ProjectDetails() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Project Global Chat */}
+      <div className="project-chat-section">
+        <h2>
+          <MessageSquare size={20} />
+          Chat Global del Proyecto
+        </h2>
+        <div className="chat-container">
+          <ProjectChat projectId={project.id} />
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
 import { Send, Bot, User, Paperclip, FileText, X } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 
 interface Message {
   id: string;
@@ -30,6 +31,11 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Debug: log state changes
+  useEffect(() => {
+    console.log('🔍 AIChat state:', { isLoading, isLoadingHistory, hasMessages: messages.length, activeMeetingId });
+  }, [isLoading, isLoadingHistory, messages, activeMeetingId]);
+
   // Load chat history when meeting changes
   useEffect(() => {
     if (activeMeetingId) {
@@ -45,9 +51,10 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
   const loadChatHistory = async () => {
     if (!activeMeetingId) return;
 
+    console.log('🔄 Cargando historial del chat para meeting:', activeMeetingId);
     setIsLoadingHistory(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/v1/ai/chat/${activeMeetingId}/messages`);
+      const response = await fetch(API_ENDPOINTS.AI_CHAT_MESSAGES(activeMeetingId));
 
       if (response.ok) {
         const result = await response.json();
@@ -57,6 +64,8 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
           content: msg.content,
           timestamp: new Date(msg.created_at),
         }));
+
+        console.log('✅ Historial cargado:', history.length, 'mensajes');
 
         if (history.length === 0) {
           // Add welcome message if no history
@@ -71,7 +80,7 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
         }
       }
     } catch (error) {
-      console.error('Failed to load chat history:', error);
+      console.error('❌ Failed to load chat history:', error);
       // Show welcome message on error
       setMessages([{
         id: '1',
@@ -81,11 +90,17 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
       }]);
     } finally {
       setIsLoadingHistory(false);
+      console.log('✅ loadChatHistory finalizado, isLoading:', false);
     }
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || isLoading || !activeMeetingId) return;
+    if (!input.trim() || isLoading || !activeMeetingId) {
+      console.log('⚠️ No se puede enviar mensaje:', { input: input.trim(), isLoading, activeMeetingId });
+      return;
+    }
+
+    console.log('📤 Enviando mensaje al AI...');
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -114,7 +129,7 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
       const context = contextParts.length > 0 ? contextParts.join('\n\n') : undefined;
 
       // Call backend AI service
-      const response = await fetch(`http://localhost:3001/api/v1/ai/chat/${activeMeetingId}`, {
+      const response = await fetch(API_ENDPOINTS.AI_CHAT(activeMeetingId), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, context }),
@@ -134,8 +149,9 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
       };
 
       setMessages(prev => [...prev, aiResponse]);
+      console.log('✅ Respuesta del AI recibida');
     } catch (error) {
-      console.error('Failed to get AI response:', error);
+      console.error('❌ Failed to get AI response:', error);
 
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -147,6 +163,7 @@ export function AIChat({ userNotes = '' }: AIChatProps = {}) {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      console.log('✅ handleSendMessage finalizado, isLoading:', false);
     }
   };
 

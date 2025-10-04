@@ -6,3 +6,4 @@ export { ChatMessageModel } from './ChatMessageModel';
 export { UserNotesModel } from './UserNotesModel';
 export { ProjectModel } from './ProjectModel';
 export { ProjectDocumentModel } from './ProjectDocumentModel';
+export { ProjectChatMessageModel } from './ProjectChatMessageModel';
