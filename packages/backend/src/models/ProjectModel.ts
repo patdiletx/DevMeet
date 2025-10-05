@@ -6,6 +6,8 @@ export interface Project {
   description?: string;
   color?: string;
   status: string;
+  git_path?: string;
+  git_branch?: string;
   metadata?: any;
   created_at: Date;
   updated_at: Date;
@@ -15,6 +17,8 @@ export interface CreateProjectInput {
   name: string;
   description?: string;
   color?: string;
+  git_path?: string;
+  git_branch?: string;
   metadata?: any;
 }
 
@@ -23,6 +27,8 @@ export interface UpdateProjectInput {
   description?: string;
   color?: string;
   status?: string;
+  git_path?: string;
+  git_branch?: string;
   metadata?: any;
 }
 
@@ -88,8 +94,8 @@ export class ProjectModel {
    */
   static async create(input: CreateProjectInput): Promise<Project> {
     const sql = `
-      INSERT INTO projects (name, description, color, metadata)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO projects (name, description, color, git_path, git_branch, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
 
@@ -97,6 +103,8 @@ export class ProjectModel {
       input.name,
       input.description || null,
       input.color || null,
+      input.git_path || null,
+      input.git_branch || null,
       input.metadata || {}
     ];
 
@@ -130,6 +138,16 @@ export class ProjectModel {
     if (input.status !== undefined) {
       fields.push(`status = $${paramCount++}`);
       params.push(input.status);
+    }
+
+    if (input.git_path !== undefined) {
+      fields.push(`git_path = $${paramCount++}`);
+      params.push(input.git_path);
+    }
+
+    if (input.git_branch !== undefined) {
+      fields.push(`git_branch = $${paramCount++}`);
+      params.push(input.git_branch);
     }
 
     if (input.metadata !== undefined) {

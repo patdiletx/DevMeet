@@ -1,5 +1,6 @@
 import { ClaudeService, type DetectedActionItem, type MeetingAnalysis } from './claude';
 import { logger } from '../config/logger';
+import type { GitCommit } from '../models/DailySummaryModel';
 
 /**
  * Wrapper for AI services (currently uses Claude)
@@ -218,6 +219,82 @@ Answer:`
         created_at: new Date(),
       };
     });
+  }
+
+  /**
+   * Generate daily standup summary from git commits and meetings
+   */
+  async generateDailyStandup(data: {
+    gitCommits: GitCommit[];
+    meetingsSummary?: string;
+    userNotes?: string;
+    language?: string;
+  }): Promise<{
+    yesterday_work: string[];
+    today_plan: string[];
+    blockers: string[];
+    standup_script: string;
+  }> {
+    try {
+      const languageInstruction = this.getLanguageInstructions(data.language);
+
+      const prompt = `${languageInstruction}
+
+You are a helpful assistant that creates daily standup summaries for developers.
+
+Based on the following information about yesterday's work, create a structured standup summary:
+
+GIT COMMITS:
+${data.gitCommits.length > 0 ? data.gitCommits.map(c => `- [${c.hash}] ${c.message} (${c.author})`).join('\n') : 'No commits found'}
+
+${data.meetingsSummary ? `MEETINGS SUMMARY:\n${data.meetingsSummary}\n` : ''}
+
+${data.userNotes ? `USER NOTES:\n${data.userNotes}\n` : ''}
+
+Please provide:
+1. A list of work items completed yesterday (bullet points, be specific about what was accomplished)
+2. A list of planned tasks for today (infer from commits and context, be realistic)
+3. Any blockers or issues (if mentioned in notes or can be inferred)
+4. A natural standup script (2-3 sentences max, conversational tone for saying in a daily standup)
+
+Format your response as JSON with this structure:
+{
+  "yesterday_work": ["item1", "item2", ...],
+  "today_plan": ["task1", "task2", ...],
+  "blockers": ["blocker1", ...] (empty array if none),
+  "standup_script": "Natural text to say in standup"
+}
+
+IMPORTANT: Return ONLY the JSON object, no additional text or markdown formatting.`;
+
+      const response = await this.claudeService.client.messages.create({
+        model: this.claudeService.model || 'claude-3-5-sonnet-20241022',
+        max_tokens: 2048,
+        temperature: 0.3,
+        messages: [{
+          role: 'user',
+          content: prompt,
+        }],
+      });
+
+      const content = response.content[0];
+      if (content.type !== 'text') {
+        throw new Error('Unexpected response type from Claude');
+      }
+
+      // Parse JSON response
+      const result = JSON.parse(content.text.trim());
+
+      return {
+        yesterday_work: result.yesterday_work || [],
+        today_plan: result.today_plan || [],
+        blockers: result.blockers || [],
+        standup_script: result.standup_script || '',
+      };
+    } catch (error: any) {
+      logger.error('Failed to generate daily standup:', error);
+      throw new Error(`Failed to generate daily standup: ${error.message}`);
+    }
   }
 }
 

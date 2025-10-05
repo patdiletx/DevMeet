@@ -1,0 +1,227 @@
+import { Router } from 'express';
+import { DailySummaryModel, MeetingModel } from '../models';
+import { gitService } from '../services/gitService';
+import { aiService } from '../services/aiService';
+import { logger } from '../config/logger';
+
+const router = Router();
+
+/**
+ * Generate daily standup summary
+ * POST /api/v1/daily/generate
+ */
+router.post('/generate', async (req, res) => {
+  try {
+    const { date, userEmail, userNotes, projectId } = req.body;
+
+    const summaryDate = date ? new Date(date) : new Date();
+    summaryDate.setHours(0, 0, 0, 0);
+
+    logger.info(`Generating daily summary for ${summaryDate.toISOString()}${projectId ? ` (project ${projectId})` : ''}`);
+
+    // Get project configuration if specified
+    let gitPath: string | undefined;
+    let gitBranch: string | undefined;
+    if (projectId) {
+      const { ProjectModel } = await import('../models');
+      const project = await ProjectModel.findById(projectId);
+      if (project) {
+        gitPath = project.git_path || undefined;
+        gitBranch = project.git_branch || undefined;
+      }
+    }
+
+    // Get git commits from yesterday with project filters
+    const gitCommits = await gitService.getCommitsFromYesterday(userEmail, gitPath, gitBranch);
+    logger.info(`Found ${gitCommits.length} git commits`);
+
+    // Get yesterday's meetings
+    const yesterday = new Date(summaryDate);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const meetings = await MeetingModel.findAll({
+      project_id: projectId,
+      limit: 10,
+    });
+
+    // Filter meetings from yesterday
+    const yesterdayMeetings = meetings.filter(meeting => {
+      const meetingDate = new Date(meeting.started_at);
+      return (
+        meetingDate.getDate() === yesterday.getDate() &&
+        meetingDate.getMonth() === yesterday.getMonth() &&
+        meetingDate.getFullYear() === yesterday.getFullYear()
+      );
+    });
+
+    logger.info(`Found ${yesterdayMeetings.length} meetings from yesterday`);
+
+    // Build meetings summary
+    let meetingsSummary = '';
+    if (yesterdayMeetings.length > 0) {
+      meetingsSummary = yesterdayMeetings
+        .map(m => `- ${m.title} (${new Date(m.started_at).toLocaleTimeString()})`)
+        .join('\n');
+    }
+
+    // Generate standup summary with AI
+    const standupData = await aiService.generateDailyStandup({
+      gitCommits,
+      meetingsSummary,
+      userNotes,
+      language: 'es', // Can be detected from user preferences
+    });
+
+    // Save to database
+    const summary = await DailySummaryModel.create({
+      project_id: projectId,
+      summary_date: summaryDate,
+      yesterday_work: standupData.yesterday_work,
+      today_plan: standupData.today_plan,
+      blockers: standupData.blockers,
+      standup_script: standupData.standup_script,
+      git_commits: gitCommits,
+      meetings_summary: meetingsSummary,
+      raw_data: {
+        userNotes,
+        meetingsCount: yesterdayMeetings.length,
+        commitsCount: gitCommits.length,
+        gitPath,
+        gitBranch,
+      },
+    });
+
+    logger.info(`Daily summary created with ID ${summary.id}`);
+
+    return res.json({
+      success: true,
+      data: summary,
+    });
+  } catch (error: any) {
+    logger.error('Failed to generate daily summary:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Get today's summary (or generate if doesn't exist)
+ * GET /api/v1/daily/today?projectId=123
+ */
+router.get('/today', async (req, res) => {
+  try {
+    const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : undefined;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let summary = await DailySummaryModel.findByDate(today, 1, projectId);
+
+    if (!summary) {
+      // Auto-generate if doesn't exist
+      logger.info(`No summary for today${projectId ? ` (project ${projectId})` : ''}, auto-generating...`);
+
+      // Get project configuration if specified
+      let gitPath: string | undefined;
+      let gitBranch: string | undefined;
+      if (projectId) {
+        const { ProjectModel } = await import('../models');
+        const project = await ProjectModel.findById(projectId);
+        if (project) {
+          gitPath = project.git_path || undefined;
+          gitBranch = project.git_branch || undefined;
+        }
+      }
+
+      const gitCommits = await gitService.getCommitsFromYesterday(undefined, gitPath, gitBranch);
+      const standupData = await aiService.generateDailyStandup({
+        gitCommits,
+        language: 'es',
+      });
+
+      summary = await DailySummaryModel.create({
+        project_id: projectId,
+        summary_date: today,
+        yesterday_work: standupData.yesterday_work,
+        today_plan: standupData.today_plan,
+        blockers: standupData.blockers,
+        standup_script: standupData.standup_script,
+        git_commits: gitCommits,
+        raw_data: {
+          autoGenerated: true,
+          commitsCount: gitCommits.length,
+          gitPath,
+          gitBranch,
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: summary,
+    });
+  } catch (error: any) {
+    logger.error('Failed to get/generate today summary:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Get recent daily summaries
+ * GET /api/v1/daily/recent/:limit?
+ */
+router.get('/recent/:limit?', async (req, res) => {
+  try {
+    const limit = parseInt(req.params.limit || '7');
+    const summaries = await DailySummaryModel.findRecent(limit);
+
+    return res.json({
+      success: true,
+      data: summaries,
+    });
+  } catch (error: any) {
+    logger.error('Failed to get recent summaries:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Get daily summary by date
+ * GET /api/v1/daily/:date
+ */
+router.get('/:date', async (req, res) => {
+  try {
+    const { date } = req.params;
+    const summaryDate = new Date(date);
+    summaryDate.setHours(0, 0, 0, 0);
+
+    const summary = await DailySummaryModel.findByDate(summaryDate);
+
+    if (!summary) {
+      return res.status(404).json({
+        success: false,
+        error: 'No summary found for this date',
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: summary,
+    });
+  } catch (error: any) {
+    logger.error('Failed to get daily summary:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+export default router;

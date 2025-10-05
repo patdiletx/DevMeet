@@ -7,3 +7,4 @@ export { UserNotesModel } from './UserNotesModel';
 export { ProjectModel } from './ProjectModel';
 export { ProjectDocumentModel } from './ProjectDocumentModel';
 export { ProjectChatMessageModel } from './ProjectChatMessageModel';
+export { DailySummaryModel } from './DailySummaryModel';

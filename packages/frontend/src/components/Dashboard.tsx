@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
 import { Mic, Monitor, Video, AlertCircle, Folder } from 'lucide-react';
+import { DailyPrep } from './DailyPrep';
 
 interface Project {
   id: number;
@@ -133,6 +134,11 @@ export function Dashboard() {
             <h3>Meeting Analysis</h3>
             <p>Automatic action items, summaries, and key decisions</p>
           </div>
+        </div>
+
+        {/* Daily Standup Prep */}
+        <div className="daily-prep-section">
+          <DailyPrep />
         </div>
 
         <div className="quick-stats">

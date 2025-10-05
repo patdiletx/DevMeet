@@ -30,6 +30,13 @@ export const API_ENDPOINTS = {
   PROJECT_CHAT: (projectId: number) => `${API_CONFIG.BASE_URL}/api/v1/ai/project/${projectId}/chat`,
   PROJECT_CHAT_MESSAGES: (projectId: number) => `${API_CONFIG.BASE_URL}/api/v1/ai/project/${projectId}/chat/messages`,
 
+  // Daily Standup
+  DAILY_GENERATE: `${API_CONFIG.BASE_URL}/api/v1/daily/generate`,
+  DAILY_TODAY: (projectId?: number) =>
+    `${API_CONFIG.BASE_URL}/api/v1/daily/today${projectId ? `?projectId=${projectId}` : ''}`,
+  DAILY_BY_DATE: (date: string) => `${API_CONFIG.BASE_URL}/api/v1/daily/${date}`,
+  DAILY_RECENT: (limit?: number) => `${API_CONFIG.BASE_URL}/api/v1/daily/recent/${limit || 7}`,
+
   // Transcriptions
   TRANSCRIPTIONS: (meetingId: number) => `${API_CONFIG.BASE_URL}/api/v1/transcriptions/meeting/${meetingId}`,
 } as const;
